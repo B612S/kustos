@@ -25,6 +25,13 @@ All notable changes to Kustos are documented here. The format is based on
 - The breadcrumb was never filled (a QML `id` shadowed the property of the same
   name); the browser now shows where you are and the snapshot date/time.
 
+### Security
+
+- The repository key is no longer written to disk. It is generated once, shown
+  in a one-time dialog, and asked for on every start; the CLI reads
+  `KUSTOS_PASSWORD`/`KUSTOS_PASSWORD_FILE`. Automatic backups now need the key
+  to be provided to the systemd service explicitly.
+
 ### Changed
 
 - Rewritten in Rust (`qmetaobject` + QML/Kirigami) instead of C++/CMake; the

@@ -16,17 +16,17 @@ sha256sums=()
 build() {
   cd "$startdir"
   export QMAKE=/usr/bin/qmake6
-  cargo build --release --locked --target-dir "$srcdir/target"
+  cargo build --release --locked --target-dir "$startdir/target"
 }
 
 check() {
   cd "$startdir"
   export QMAKE=/usr/bin/qmake6
-  cargo test --locked --target-dir "$srcdir/target"
+  cargo test --locked --target-dir "$startdir/target"
 }
 
 package() {
-  install -Dm755 "$srcdir/target/release/kustos" "$pkgdir/usr/bin/kustos"
+  install -Dm755 "$startdir/target/release/kustos" "$pkgdir/usr/bin/kustos"
   install -Dm644 "$startdir/kustos.desktop" \
     "$pkgdir/usr/share/applications/kustos.desktop"
   install -Dm644 "$startdir/assets/kustos.svg" \

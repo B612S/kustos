@@ -18,7 +18,7 @@ cargo test                  # unit tests, no display needed
 
 - Qt is found through `qmake`; `.cargo/config.toml` pins `QMAKE=/usr/bin/qmake6`
   because the machine also has Qt 5. Never remove that line.
-- `src/bridge.cpp` is compiled by `build.rs` with `pkg-config` (Qt6Core, Gui,
+- `rust/bridge.cpp` is compiled by `build.rs` with `pkg-config` (Qt6Core, Gui,
   Qml, Quick). It exists only for the `QTranslator` and the clipboard.
 - Headless UI check (offscreen, no display):
 
@@ -36,18 +36,18 @@ cargo test                  # unit tests, no display needed
 
 ## Architecture map
 
-- `src/main.rs` — CLI (`--backup`, `--list`, `--prune`, `--restore`,
+- `rust/main.rs` — CLI (`--backup`, `--list`, `--prune`, `--restore`,
   `--print-config`, `--version`, `--help`), resource registration (`qrc!`),
   GUI bootstrap: `QmlEngine`, `QTranslator`, context properties, `exec()`.
-- `src/objects.rs` — the QObjects exposed to QML: `Config`, `Store`, `Backup`,
+- `rust/objects.rs` — the QObjects exposed to QML: `Config`, `Store`, `Backup`,
   `Restore`, `Browser`, `Scheduler`, `App`. Long jobs run on `std::thread` and
   publish `Arc<Mutex<JobStatus>>`; QML polls with a `Timer` and a JS property.
-- `src/rustic.rs` — process wrapper and JSON parsing (`backup --json-progress`,
+- `rust/rustic.rs` — process wrapper and JSON parsing (`backup --json-progress`,
   `snapshots --json`, `ls --json --long`, `restore --json-progress`, `forget`).
-- `src/config.rs` — JSON settings (`~/.config/kustos/kustos.json`), defaults,
-  password generation; `src/paths.rs` — XDG paths.
-- `src/schedule.rs` — systemd user timer; `src/notify.rs` — `notify-send`;
-  `src/i18n.rs` — translator installation through the bridge.
+- `rust/config.rs` — JSON settings (`~/.config/kustos/kustos.json`), defaults,
+  password generation; `rust/paths.rs` — XDG paths.
+- `rust/schedule.rs` — systemd user timer; `rust/notify.rs` — `notify-send`;
+  `rust/i18n.rs` — translator installation through the bridge.
 - `qml/` — flat directory. `Main.qml` owns the window, the polling timers and
   the dialogs; `TimelinePanel`, `SnapshotBrowser` are views exchanging plain JS
   arrays with Rust (`Store.snapshots()`, `Browser.entries()`); `BackupDialog`
@@ -89,8 +89,11 @@ cargo test                  # unit tests, no display needed
   policies are overwrite / skip / keep_both.
 - After a successful backup, `forget --keep-hourly/daily/weekly --prune` is
   applied. Never remove the only snapshot.
-- The repository key is `~/.config/kustos/repo.password` (0600); it is the only
-  way to read the backups and is shown in About.
+- The repository key lives in memory only (`rust/vault.rs`): generated once at
+  repository creation, shown in the one-time dialog, never written to disk.
+  Every start asks for it; the CLI reads `KUSTOS_PASSWORD` /
+  `KUSTOS_PASSWORD_FILE`. Do not add a key file back without an explicit
+  request — that was a deliberate security decision.
 
 ## Localization
 

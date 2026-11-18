@@ -91,9 +91,22 @@ Kirigami.ApplicationWindow {
         ensureSelection();
     }
 
+    function ensureUnlocked() {
+        if (Store.status().locked) {
+            keyDialog.openUnlock();
+            return false;
+        }
+        return true;
+    }
+
     function startBackup() {
+        if (!root.ensureUnlocked())
+            return;
         Backup.start();
         backupStatus = Backup.poll();
+        const newKey = Backup.takeNewKey();
+        if (newKey !== "")
+            keyDialog.openNew(newKey);
     }
 
     function removeSnapshot(id) {
@@ -165,7 +178,10 @@ Kirigami.ApplicationWindow {
                 text: qsTr("action_back_up_now")
                 icon.name: "document-save"
                 enabled: !root.busy
-                onTriggered: backupDialog.open()
+                onTriggered: {
+                    if (root.ensureUnlocked())
+                        backupDialog.open();
+                }
             },
             Kirigami.Action {
                 text: qsTr("action_restore")
@@ -211,7 +227,10 @@ Kirigami.ApplicationWindow {
                 text: qsTr("action_back_up_now")
                 icon.name: "document-save"
                 enabled: !root.busy
-                onTriggered: backupDialog.open()
+                onTriggered: {
+                    if (root.ensureUnlocked())
+                        backupDialog.open();
+                }
             },
             Kirigami.Action {
                 text: qsTr("action_restore")
@@ -341,6 +360,11 @@ Kirigami.ApplicationWindow {
         id: backupDialog
         onStartRequested: root.startBackup()
     }
+    UnlockDialog {
+        id: keyDialog
+        onUnlocked: root.refreshSnapshots()
+        onAcknowledged: root.refreshSnapshots()
+    }
     RestoreDialog { id: restoreDialog }
     SettingsDialog {
         id: settingsDialog
@@ -434,12 +458,17 @@ Kirigami.ApplicationWindow {
             aboutDialog.open();
         else if (name === "backup")
             backupDialog.open();
+        else if (name === "key")
+            keyDialog.openNew("o7JRdeB7v8gpDNdBjEBeYQsf");
         else if (name === "restore" && root.selectedSnapshotId !== "")
             restoreDialog.openFor(root.selectedSnapshotId, []);
     }
 
     Component.onCompleted: {
-        root.refreshSnapshots();
+        if (Store.status().locked)
+            keyDialog.openUnlock();
+        else
+            root.refreshSnapshots();
         root.schedulerStatus = Scheduler.poll();
         root.backupStatus = Backup.poll();
         root.restoreStatus = Restore.poll();

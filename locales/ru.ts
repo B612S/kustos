@@ -7,16 +7,13 @@
 <message><source>about_credits</source><translation>Сделано на Rust, Qt 6, Kirigami и rustic (репозитории формата restic). Конвенции окон, меню и локализации — как в Luma.</translation></message>
 <message><source>about_description</source><translation>Снимки домашней папки в духе Time Machine. Они лежат в зашифрованном, сжатом репозитории с дедупликацией (формат restic), поэтому неизменённые данные не занимают лишнего места.</translation></message>
 <message><source>about_key</source><translation>Ключ репозитория</translation></message>
-<message><source>about_key_hint</source><translation>Ключ расшифровывает все снимки. Он хранится в ~/.config/kustos/repo.password и является единственным способом прочитать копии, если этот компьютер потеряется — сохраните его отдельно, например в менеджере паролей.</translation></message>
+<message><source>about_key_hint</source><translation>Ключ расшифровывает все снимки и никогда не записывается на диск. Он показывается один раз при создании репозитория и запрашивается при каждом запуске.</translation></message>
 <message><source>about_license</source><translation>Лицензия: GPL-3.0-or-later</translation></message>
 <message><source>about_log</source><translation>Журнал</translation></message>
 <message><source>about_repo</source><translation>Репозиторий</translation></message>
 <message><source>about_title</source><translation>О программе Kustos</translation></message>
 <message><source>about_version</source><translation>Версия %1</translation></message>
 <message><source>action_close</source><translation>Закрыть</translation></message>
-<message><source>action_copy_key</source><translation>Скопировать ключ</translation></message>
-<message><source>action_hide</source><translation>Скрыть</translation></message>
-<message><source>action_show</source><translation>Показать</translation></message>
 </context>
 <context>
 <name>BackupDialog</name>
@@ -140,5 +137,19 @@
 <message><source>timeline_empty</source><translation>Таймлайн появится после первой резервной копии.</translation></message>
 <message><source>timeline_hint</source><translation>Сверху самые свежие. Выберите снимок, чтобы просмотреть его и восстановить файлы.</translation></message>
 <message><source>timeline_title</source><translation>Резервные копии</translation></message>
+</context>
+<context>
+<name>UnlockDialog</name>
+<message><source>action_cancel</source><translation>Отмена</translation></message>
+<message><source>action_continue</source><translation>Продолжить</translation></message>
+<message><source>action_copy</source><translation>Копировать</translation></message>
+<message><source>action_unlock</source><translation>Разблокировать</translation></message>
+<message><source>key_hint</source><translation>Ключ показывается один раз и нигде не сохраняется. Без него копии не прочитать — скопируйте его в менеджер паролей или запишите прямо сейчас.</translation></message>
+<message><source>key_saved</source><translation>Ключ сохранён</translation></message>
+<message><source>key_title</source><translation>Сохраните ключ репозитория</translation></message>
+<message><source>unlock_hint</source><translation>Введите ключ репозитория, показанный при его создании. Он нигде не хранится и потребуется снова после каждого перезапуска.</translation></message>
+<message><source>unlock_placeholder</source><translation>Ключ репозитория</translation></message>
+<message><source>unlock_title</source><translation>Разблокировать репозиторий</translation></message>
+<message><source>unlock_wrong</source><translation>Неверный ключ</translation></message>
 </context>
 </TS>

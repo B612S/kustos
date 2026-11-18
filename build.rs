@@ -5,7 +5,7 @@
 //! qmetaobject: installing a QTranslator and using the Qt clipboard.
 
 fn main() {
-    println!("cargo:rerun-if-changed=src/bridge.cpp");
+    println!("cargo:rerun-if-changed=rust/bridge.cpp");
     let qt = pkg_config::Config::new()
         .probe("Qt6Core Qt6Gui Qt6Qml Qt6Quick")
         .expect("Qt 6 development files are required");
@@ -13,7 +13,7 @@ fn main() {
     build
         .cpp(true)
         .std("c++17")
-        .file("src/bridge.cpp")
+        .file("rust/bridge.cpp")
         .warnings(false);
     for path in &qt.include_paths {
         build.include(path);

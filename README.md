@@ -87,16 +87,22 @@ Defaults:
 are edited; **Back Up Now** in that dialog starts the snapshot. The same lists
 are reachable from **Settings → Backup Scope…**.
 
-The repository key is generated on the first run and stored in
-`~/.config/kustos/repo.password` (mode 0600). It is the only way to read the
-backups: copy it to a password manager or print it, otherwise a lost machine
-means lost backups. **About → Repository key** shows it.
+The repository key is generated on the first run and **shown once** — copy it
+to a password manager before continuing. It is never written to disk: every
+start asks for it (the *Unlock the Repository* dialog), and without it the
+backups cannot be read. The command line reads it from `KUSTOS_PASSWORD` or
+`KUSTOS_PASSWORD_FILE`.
+
+Because nothing is stored, the systemd timer cannot unlock the repository on
+its own. Automatic backups therefore need the key supplied to the service (for
+example `Environment=KUSTOS_PASSWORD=…` in the user unit) — a deliberate
+trade-off; the schedule stays off by default.
 
 ## Command line
 
 ```bash
 kustos                     # GUI
-kustos --backup            # create a snapshot (used by the timer)
+kustos --backup            # create a snapshot (KUSTOS_PASSWORD required)
 kustos --backup --quiet    # no progress output
 kustos --list              # snapshots in the repository
 kustos --prune             # apply the retention policy
@@ -136,7 +142,6 @@ See [docs/BACKUP-FORMAT.md](docs/BACKUP-FORMAT.md).
 | Path | Contents |
 |---|---|
 | `~/.config/kustos/kustos.json` | settings |
-| `~/.config/kustos/repo.password` | repository key (0600) |
 | `~/.cache/kustos/kustos.log` | application log |
 | `~/.config/systemd/user/kustos-backup.*` | timer and service |
 

@@ -21,9 +21,9 @@ is stored in `keys/` encrypted with it. Data and metadata are encrypted with
 AES-256 (CTR mode with a Poly1305 authenticator). Without the password file the
 repository is unreadable — there is no recovery path.
 
-Kustos generates the password on the first run and keeps it in
-`~/.config/kustos/repo.password` (mode 0600). The About dialog shows it; it
-must be stored somewhere else as well.
+Kustos generates the password on the first run, shows it once and keeps it in
+memory only. It is never written to disk: every start asks for it. Without the
+key there is no recovery path.
 
 ## Compression and deduplication
 

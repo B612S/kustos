@@ -9,6 +9,10 @@ license = "GPL-3.0-or-later"
 cc = "1"
 pkg-config = "0.3"
 
+[[bin]]
+name = "kustos"
+path = "rust/main.rs"
+
 [dependencies]
 qmetaobject = "0.2.10"
 serde = { version = "1", features = ["derive"] }

@@ -7,16 +7,13 @@
 <message><source>about_credits</source><translation>Built with Rust, Qt 6, Kirigami and rustic (restic-compatible repositories). Window, menu and localization conventions follow Luma.</translation></message>
 <message><source>about_description</source><translation>Time Machine-like snapshots of your home folder. Snapshots live in an encrypted, compressed, deduplicated repository (restic format), so unchanged data never costs extra space.</translation></message>
 <message><source>about_key</source><translation>Repository key</translation></message>
-<message><source>about_key_hint</source><translation>The key decrypts every snapshot. It is stored in ~/.config/kustos/repo.password and is the only way to read the backups if this machine is lost — save it somewhere else, for example in a password manager.</translation></message>
+<message><source>about_key_hint</source><translation>The key decrypts every snapshot and is never written to disk. It is shown once when the repository is created and asked for on every start.</translation></message>
 <message><source>about_license</source><translation>License: GPL-3.0-or-later</translation></message>
 <message><source>about_log</source><translation>Log</translation></message>
 <message><source>about_repo</source><translation>Repository</translation></message>
 <message><source>about_title</source><translation>About Kustos</translation></message>
 <message><source>about_version</source><translation>Version %1</translation></message>
 <message><source>action_close</source><translation>Close</translation></message>
-<message><source>action_copy_key</source><translation>Copy Key</translation></message>
-<message><source>action_hide</source><translation>Hide</translation></message>
-<message><source>action_show</source><translation>Show</translation></message>
 </context>
 <context>
 <name>BackupDialog</name>
@@ -140,5 +137,19 @@
 <message><source>timeline_empty</source><translation>The timeline appears here after the first backup.</translation></message>
 <message><source>timeline_hint</source><translation>Newest first. Pick a snapshot to browse it and restore files.</translation></message>
 <message><source>timeline_title</source><translation>Backups</translation></message>
+</context>
+<context>
+<name>UnlockDialog</name>
+<message><source>action_cancel</source><translation>Cancel</translation></message>
+<message><source>action_continue</source><translation>Continue</translation></message>
+<message><source>action_copy</source><translation>Copy</translation></message>
+<message><source>action_unlock</source><translation>Unlock</translation></message>
+<message><source>key_hint</source><translation>This key is shown once and is not stored anywhere. Without it the backups cannot be read — copy it to a password manager or write it down now.</translation></message>
+<message><source>key_saved</source><translation>I saved the key</translation></message>
+<message><source>key_title</source><translation>Save the Repository Key</translation></message>
+<message><source>unlock_hint</source><translation>Enter the repository key that was shown when the repository was created. It is not stored anywhere and is needed again after every restart.</translation></message>
+<message><source>unlock_placeholder</source><translation>Repository key</translation></message>
+<message><source>unlock_title</source><translation>Unlock the Repository</translation></message>
+<message><source>unlock_wrong</source><translation>Wrong key</translation></message>
 </context>
 </TS>

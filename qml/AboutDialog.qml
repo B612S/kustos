@@ -154,30 +154,10 @@ Dialog {
         }
         Label {
             Layout.fillWidth: true
-            text: dialog.keyVisible ? Store.password() : "••••••••••••••••"
-            font.pixelSize: 13
-            font.family: "monospace"
-            wrapMode: Text.WrapAnywhere
-            color: Kirigami.Theme.textColor
-        }
-        RowLayout {
-            spacing: 8
-            Button {
-                text: dialog.keyVisible ? qsTr("action_hide") : qsTr("action_show")
-                onClicked: dialog.keyVisible = !dialog.keyVisible
-            }
-            Button {
-                text: qsTr("action_copy_key")
-                icon.name: "edit-copy"
-                onClicked: App.copyText(Store.password())
-            }
-        }
-        Label {
-            Layout.fillWidth: true
-            text: qsTr("about_key_hint")
             wrapMode: Text.WordWrap
+            text: qsTr("about_key_hint")
             font.pixelSize: 11
-            opacity: 0.7
+            opacity: 0.75
             color: Kirigami.Theme.textColor
         }
 

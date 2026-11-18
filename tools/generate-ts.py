@@ -197,13 +197,31 @@ TRANSLATIONS: dict[str, tuple[str, str]] = {
         "Конвенции окон, меню и локализации — как в Luma.",
     ),
     "about_key": ("Repository key", "Ключ репозитория"),
+    "unlock_title": ("Unlock the Repository", "Разблокировать репозиторий"),
+    "unlock_hint": (
+        "Enter the repository key that was shown when the repository was created. "
+        "It is not stored anywhere and is needed again after every restart.",
+        "Введите ключ репозитория, показанный при его создании. Он нигде не хранится "
+        "и потребуется снова после каждого перезапуска.",
+    ),
+    "unlock_placeholder": ("Repository key", "Ключ репозитория"),
+    "unlock_wrong": ("Wrong key", "Неверный ключ"),
+    "key_title": ("Save the Repository Key", "Сохраните ключ репозитория"),
+    "key_hint": (
+        "This key is shown once and is not stored anywhere. Without it the backups "
+        "cannot be read — copy it to a password manager or write it down now.",
+        "Ключ показывается один раз и нигде не сохраняется. Без него копии не прочитать — "
+        "скопируйте его в менеджер паролей или запишите прямо сейчас.",
+    ),
+    "key_saved": ("I saved the key", "Ключ сохранён"),
+    "action_unlock": ("Unlock", "Разблокировать"),
+    "action_continue": ("Continue", "Продолжить"),
+    "action_copy": ("Copy", "Копировать"),
     "about_key_hint": (
-        "The key decrypts every snapshot. It is stored in ~/.config/kustos/repo.password "
-        "and is the only way to read the backups if this machine is lost — save it "
-        "somewhere else, for example in a password manager.",
-        "Ключ расшифровывает все снимки. Он хранится в ~/.config/kustos/repo.password и "
-        "является единственным способом прочитать копии, если этот компьютер потеряется — "
-        "сохраните его отдельно, например в менеджере паролей.",
+        "The key decrypts every snapshot and is never written to disk. It is shown "
+        "once when the repository is created and asked for on every start.",
+        "Ключ расшифровывает все снимки и никогда не записывается на диск. Он "
+        "показывается один раз при создании репозитория и запрашивается при каждом запуске.",
     ),
     "action_show": ("Show", "Показать"),
     "action_hide": ("Hide", "Скрыть"),
