@@ -1,2 +1,7 @@
 /target
 /build
+
+# makepkg
+/src/
+/pkg/
+*.pkg.tar.*

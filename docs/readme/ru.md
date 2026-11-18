@@ -14,14 +14,13 @@ QML/Kirigami.
 ## Установка
 
 ```bash
-sudo pacman -S qt6-base qt6-declarative kirigami qqc2-desktop-style
-# rustic: pacman -S rustic или бинарник с GitHub в ~/.local/bin
-cargo build --release
-install -m755 target/release/kustos ~/.local/bin/
-install -m644 kustos.desktop ~/.local/share/applications/
-install -m644 assets/kustos.svg ~/.local/share/icons/hicolor/scalable/apps/
-install -m644 assets/kustos.png ~/.local/share/icons/hicolor/256x256/apps/
+sudo pacman -S qt6-base qt6-declarative kirigami qqc2-desktop-style rustic
+cd ~/Projects/kustos
+makepkg -si          # собирает из рабочего дерева и ставит пакет
 ```
+
+После установки один раз откройте **«Настройки → Расписание»**: юнит
+systemd перезапишется с `ExecStart=/usr/bin/kustos`.
 
 ## Первый запуск
 

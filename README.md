@@ -46,6 +46,15 @@ sudo pacman -S qt6-base qt6-declarative kirigami qqc2-desktop-style rust
 
 ## Build and install
 
+Arch Linux — a PKGBUILD is included; it builds from this working tree:
+
+```bash
+cd ~/Projects/kustos
+makepkg -si          # installs /usr/bin/kustos, desktop file, icons, license
+```
+
+Manual build:
+
 ```bash
 cargo build --release
 install -m755 target/release/kustos ~/.local/bin/
@@ -53,6 +62,9 @@ install -m644 kustos.desktop ~/.local/share/applications/
 install -m644 assets/kustos.svg ~/.local/share/icons/hicolor/scalable/apps/
 install -m644 assets/kustos.png ~/.local/share/icons/hicolor/256x256/apps/
 ```
+
+After installing from the package, open **Settings → Schedule** once: the
+systemd unit is rewritten with the new `ExecStart` (`/usr/bin/kustos`).
 
 Qt is located through `qmake`; this machine also has Qt 5 installed, so
 `.cargo/config.toml` pins `QMAKE=/usr/bin/qmake6`. The small C++ bridge

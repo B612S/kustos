@@ -56,6 +56,10 @@ TRANSLATIONS: dict[str, tuple[str, str]] = {
 
     # ---- timeline (TimelinePanel.qml) ----
     "timeline_title": ("Backups", "Резервные копии"),
+    "timeline_hint": (
+        "Newest first. Pick a snapshot to browse it and restore files.",
+        "Сверху самые свежие. Выберите снимок, чтобы просмотреть его и восстановить файлы.",
+    ),
     "timeline_count": ("%1 snapshot(s)", "Снимков: %1"),
     "timeline_empty": (
         "The timeline appears here after the first backup.",
@@ -70,6 +74,11 @@ TRANSLATIONS: dict[str, tuple[str, str]] = {
     "menu_delete_snapshot": ("Delete Snapshot…", "Удалить снимок…"),
 
     # ---- browser (SnapshotBrowser.qml) ----
+    "browser_home": ("Home", "Домой"),
+    "browser_snapshot": ("Snapshot %1, %2", "Снимок %1, %2"),
+    "browser_name": ("Name", "Имя"),
+    "browser_modified": ("Modified", "Изменён"),
+    "browser_size": ("Size", "Размер"),
     "browser_up": ("Up", "Вверх"),
     "browser_selected": ("Selected: %1", "Выбрано: %1"),
     "browser_select_all": ("Select All", "Выбрать всё"),

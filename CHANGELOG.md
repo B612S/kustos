@@ -18,11 +18,19 @@ All notable changes to Kustos are documented here. The format is based on
 - Automatic backups through a systemd user timer, runtime English/Russian
   switch, `notify-send` notifications.
 
+### Fixed
+
+- Timeline and browser panels use `backgroundColor`/`textColor` from one color
+  set, so labels stay readable in dark Plasma themes.
+- The breadcrumb was never filled (a QML `id` shadowed the property of the same
+  name); the browser now shows where you are and the snapshot date/time.
+
 ### Changed
 
 - Rewritten in Rust (`qmetaobject` + QML/Kirigami) instead of C++/CMake; the
   rsync hard-link engine is replaced by a restic-compatible repository.
 - Renamed from Aion to Kustos (the old name collides with a game).
+- Arch packaging: `PKGBUILD` builds from the working tree (`makepkg -si`).
 
 ## [0.1.0]
 

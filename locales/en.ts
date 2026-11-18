@@ -118,11 +118,17 @@
 <message><source>browser_clear_selection</source><translation>Clear Selection</translation></message>
 <message><source>browser_empty</source><translation>This folder is empty</translation></message>
 <message><source>browser_empty_hint</source><translation>Pick another snapshot or go up a level.</translation></message>
+<message><source>browser_home</source><translation>Home</translation></message>
+<message><source>browser_modified</source><translation>Modified</translation></message>
+<message><source>browser_name</source><translation>Name</translation></message>
 <message><source>browser_select_all</source><translation>Select All</translation></message>
 <message><source>browser_selected</source><translation>Selected: %1</translation></message>
+<message><source>browser_size</source><translation>Size</translation></message>
+<message><source>browser_snapshot</source><translation>Snapshot %1, %2</translation></message>
 <message><source>browser_up</source><translation>Up</translation></message>
 <message><source>menu_copy_path</source><translation>Copy Path</translation></message>
 <message><source>menu_restore_item</source><translation>Restore This Item…</translation></message>
+<message><source>snapshot_latest</source><translation>Latest</translation></message>
 </context>
 <context>
 <name>TimelinePanel</name>
@@ -132,6 +138,7 @@
 <message><source>snapshot_latest</source><translation>Latest</translation></message>
 <message><source>timeline_count</source><translation>%1 snapshot(s)</translation></message>
 <message><source>timeline_empty</source><translation>The timeline appears here after the first backup.</translation></message>
+<message><source>timeline_hint</source><translation>Newest first. Pick a snapshot to browse it and restore files.</translation></message>
 <message><source>timeline_title</source><translation>Backups</translation></message>
 </context>
 </TS>

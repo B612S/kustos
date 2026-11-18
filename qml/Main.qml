@@ -77,6 +77,14 @@ Kirigami.ApplicationWindow {
             selectedSnapshotId = snapshots[0].id;
     }
 
+    function selectedSnapshot() {
+        for (let i = 0; i < snapshots.length; ++i) {
+            if (snapshots[i].id === selectedSnapshotId)
+                return snapshots[i];
+        }
+        return null;
+    }
+
     function refreshSnapshots() {
         snapshots = Store.snapshots();
         rebuildTimeline();
@@ -250,6 +258,9 @@ Kirigami.ApplicationWindow {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     busy: root.busy
+                    snapshotDate: root.selectedSnapshot() ? root.selectedSnapshot().dateText : ""
+                    snapshotTime: root.selectedSnapshot() ? root.selectedSnapshot().timeText : ""
+                    snapshotLatest: root.selectedSnapshot() ? root.selectedSnapshot().isLatest : false
                     onRestoreRequested: restoreDialog.openFor(root.selectedSnapshotId,
                                                               Object.keys(browserPanel.selectedPaths))
                 }
@@ -258,7 +269,16 @@ Kirigami.ApplicationWindow {
             Rectangle {
                 Layout.fillWidth: true
                 Layout.preferredHeight: root.busy ? 56 : 30
-                color: Kirigami.Theme.alternativeBackgroundColor
+                color: Kirigami.Theme.backgroundColor
+                border.width: 0
+
+                Rectangle {
+                    anchors.top: parent.top
+                    width: parent.width
+                    height: 1
+                    color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g,
+                                   Kirigami.Theme.textColor.b, 0.15)
+                }
 
                 RowLayout {
                     anchors.fill: parent
@@ -419,7 +439,6 @@ Kirigami.ApplicationWindow {
     }
 
     Component.onCompleted: {
-        console.log("KUSTOS_QML_READY capture=" + root.captureFile);
         root.refreshSnapshots();
         root.schedulerStatus = Scheduler.poll();
         root.backupStatus = Backup.poll();

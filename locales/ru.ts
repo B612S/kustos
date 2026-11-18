@@ -118,11 +118,17 @@
 <message><source>browser_clear_selection</source><translation>Снять выделение</translation></message>
 <message><source>browser_empty</source><translation>Папка пуста</translation></message>
 <message><source>browser_empty_hint</source><translation>Выберите другой снимок или поднимитесь выше.</translation></message>
+<message><source>browser_home</source><translation>Домой</translation></message>
+<message><source>browser_modified</source><translation>Изменён</translation></message>
+<message><source>browser_name</source><translation>Имя</translation></message>
 <message><source>browser_select_all</source><translation>Выбрать всё</translation></message>
 <message><source>browser_selected</source><translation>Выбрано: %1</translation></message>
+<message><source>browser_size</source><translation>Размер</translation></message>
+<message><source>browser_snapshot</source><translation>Снимок %1, %2</translation></message>
 <message><source>browser_up</source><translation>Вверх</translation></message>
 <message><source>menu_copy_path</source><translation>Скопировать путь</translation></message>
 <message><source>menu_restore_item</source><translation>Восстановить этот элемент…</translation></message>
+<message><source>snapshot_latest</source><translation>Последняя</translation></message>
 </context>
 <context>
 <name>TimelinePanel</name>
@@ -132,6 +138,7 @@
 <message><source>snapshot_latest</source><translation>Последняя</translation></message>
 <message><source>timeline_count</source><translation>Снимков: %1</translation></message>
 <message><source>timeline_empty</source><translation>Таймлайн появится после первой резервной копии.</translation></message>
+<message><source>timeline_hint</source><translation>Сверху самые свежие. Выберите снимок, чтобы просмотреть его и восстановить файлы.</translation></message>
 <message><source>timeline_title</source><translation>Резервные копии</translation></message>
 </context>
 </TS>

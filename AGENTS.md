@@ -54,6 +54,16 @@ cargo test                  # unit tests, no display needed
   edits the scope; `SettingsDialog`, `RestoreDialog`, `AboutDialog` are cards;
   `KustosMenu`/`KustosMenuButton` are the Luma-style context menus.
 
+## QML rules (learned the hard way)
+
+- A QML `id` shadows a property with the same name inside JS functions:
+  `Row { id: crumbs }` plus `property var crumbs` makes `crumbs = …` fail with
+  *"left-hand side of assignment operator is not an lvalue"*. Keep ids and
+  property names distinct.
+- Bindings that call a C++ invokable (`Browser.path()`) do not re-evaluate when
+  the object changes; recompute such values in a function and store them in a
+  property (`crumbs`, `entries`) instead of binding to the call.
+
 ## qmetaobject rules (learned the hard way)
 
 - A method is exposed to QML by the **field name** of `qt_method!`, and the Rust
@@ -96,7 +106,9 @@ cargo test                  # unit tests, no display needed
 ## Conventions
 
 - Comments and commit messages in English.
-- `Cargo.toml` and `VERSION` both carry the version (0.2.0).
+- `Cargo.toml`, `VERSION` and `PKGBUILD` carry the same version (0.2.0).
+- `PKGBUILD` builds from the working tree (`$startdir`); `makepkg -si` is the
+  Arch install path. It runs `cargo build --release --locked` and `cargo test`.
 - Keep `CHANGELOG.md` current under `## [Unreleased]`.
 - Deleting a snapshot is the only destructive user-data operation; it stays
   behind a confirmation dialog.

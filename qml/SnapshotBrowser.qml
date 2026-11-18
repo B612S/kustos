@@ -15,8 +15,12 @@ Rectangle {
     color: Kirigami.Theme.backgroundColor
 
     property var entries: []
+    property var crumbs: []
     property string displayPath: "/"
     property bool canUp: false
+    property string snapshotDate: ""
+    property string snapshotTime: ""
+    property bool snapshotLatest: false
     property bool hasSnapshot: false
     property bool busy: false
     property var selectedPaths: ({})
@@ -34,6 +38,7 @@ Rectangle {
         entries = Browser.entries();
         displayPath = Browser.displayPath();
         canUp = Browser.canGoUp();
+        crumbs = buildBreadcrumbs();
     }
 
     function isSelected(relative) {
@@ -76,23 +81,25 @@ Rectangle {
         refresh();
     }
 
-    function breadcrumbs() {
+    function buildBreadcrumbs() {
         const relative = Browser.path();
         const home = Browser.homeRoot();
-        if (relative === "")
-            return [{ label: "/", path: "" }];
-        const parts = String(relative).split("/");
         const result = [];
-        let path = "";
-        for (let i = 0; i < parts.length; ++i) {
-            if (parts[i] === "")
-                continue;
-            path += (path === "" ? "" : "/") + parts[i];
-            result.push({
-                label: path === home ? "~" : parts[i],
-                path: path
-            });
+        let base = "";
+        if (home !== "" && (relative === home || relative.startsWith(home + "/"))) {
+            result.push({ label: qsTr("browser_home"), path: home });
+            base = home;
         }
+        const rest = relative.slice(base.length).split("/");
+        let path = base;
+        for (let i = 0; i < rest.length; ++i) {
+            if (rest[i] === "")
+                continue;
+            path += (path === "" ? "" : "/") + rest[i];
+            result.push({ label: rest[i], path: path });
+        }
+        if (result.length === 0)
+            result.push({ label: "/", path: "" });
         return result;
     }
 
@@ -102,7 +109,42 @@ Rectangle {
 
         RowLayout {
             Layout.fillWidth: true
-            Layout.margins: 10
+            Layout.leftMargin: 12
+            Layout.rightMargin: 12
+            Layout.topMargin: 10
+            spacing: 8
+            visible: panel.snapshotDate !== ""
+
+            Label {
+                text: qsTr("browser_snapshot").arg(panel.snapshotDate).arg(panel.snapshotTime)
+                font.pixelSize: 14
+                font.weight: Font.DemiBold
+                color: Kirigami.Theme.textColor
+            }
+            Rectangle {
+                visible: panel.snapshotLatest
+                radius: 4
+                color: Qt.rgba(Kirigami.Theme.highlightColor.r,
+                               Kirigami.Theme.highlightColor.g,
+                               Kirigami.Theme.highlightColor.b, 0.25)
+                implicitWidth: headerLatest.implicitWidth + 12
+                implicitHeight: headerLatest.implicitHeight + 4
+                Label {
+                    id: headerLatest
+                    anchors.centerIn: parent
+                    text: qsTr("snapshot_latest")
+                    font.pixelSize: 11
+                    color: Kirigami.Theme.textColor
+                }
+            }
+            Item { Layout.fillWidth: true }
+        }
+
+        RowLayout {
+            Layout.fillWidth: true
+            Layout.leftMargin: 10
+            Layout.rightMargin: 10
+            Layout.bottomMargin: 6
             spacing: 6
 
             ToolButton {
@@ -117,20 +159,20 @@ Rectangle {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 32
                 clip: true
-                contentWidth: crumbs.width
+                contentWidth: crumbRow.width
                 contentHeight: height
                 boundsBehavior: Flickable.StopAtBounds
 
                 Row {
-                    id: crumbs
+                    id: crumbRow
                     height: parent.height
                     spacing: 0
 
                     Repeater {
-                        model: panel.breadcrumbs()
+                        model: panel.crumbs
 
                         delegate: Row {
-                            height: crumbs.height
+                            height: crumbRow.height
                             spacing: 0
 
                             Label {
@@ -144,7 +186,7 @@ Rectangle {
                                 flat: true
                                 text: modelData.label
                                 font.pixelSize: 13
-                                height: crumbs.height
+                                height: crumbRow.height
                                 onClicked: {
                                     Browser.setPath(modelData.path);
                                     panel.refresh();
@@ -192,6 +234,39 @@ Rectangle {
                            Kirigami.Theme.textColor.b, 0.15)
         }
 
+        RowLayout {
+            Layout.fillWidth: true
+            Layout.leftMargin: 10
+            Layout.rightMargin: 10
+            Layout.bottomMargin: 2
+            spacing: 8
+
+            Label {
+                text: qsTr("browser_name")
+                Layout.fillWidth: true
+                Layout.leftMargin: 26
+                font.pixelSize: 11
+                opacity: 0.5
+                color: Kirigami.Theme.textColor
+            }
+            Label {
+                text: qsTr("browser_modified")
+                visible: list.width > 520
+                Layout.preferredWidth: 140
+                font.pixelSize: 11
+                opacity: 0.5
+                color: Kirigami.Theme.textColor
+            }
+            Label {
+                text: qsTr("browser_size")
+                Layout.preferredWidth: 80
+                horizontalAlignment: Text.AlignRight
+                font.pixelSize: 11
+                opacity: 0.5
+                color: Kirigami.Theme.textColor
+            }
+        }
+
         ListView {
             id: list
             Layout.fillWidth: true
@@ -235,6 +310,7 @@ Rectangle {
                     Label {
                         text: modelData.modifiedText
                         visible: list.width > 520
+                        Layout.preferredWidth: 140
                         font.pixelSize: 12
                         opacity: 0.5
                         color: Kirigami.Theme.textColor
