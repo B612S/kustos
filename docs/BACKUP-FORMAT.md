@@ -1,96 +1,74 @@
-# Snapshot format
+# Repository format
 
-Aion owns exactly two things on the backup volume: the `snapshots/` directory
-and a lock file next to it. Everything below is plain files, readable without
-Aion.
+Kustos does not invent a storage format: the repository is a
+[restic](https://restic.net) v2 repository written by
+[`rustic`](https://rustic.cli.rs). Everything below is the standard layout, so
+the data can also be read by `restic` 0.18+ and by `rustic` itself.
 
 ```
-<backup-folder>/
-  .aion.lock                        # QLockFile, held while a backup runs
-  snapshots/
-    latest -> 2026-11-18_19-00-00   # relative symlink to the newest snapshot
-    2026-11-18_19-00-00/
-      meta.json
-      home/soneriald/...            # mirrored absolute paths of the sources
-    2026-11-17_19-00-00/
-      ...
+<repository>/
+  config            repository metadata (chunker, version, chunk size)
+  keys/             encrypted master keys, one per password
+  data/             content-addressed, encrypted, compressed chunks
+  index/            chunk index
+  snapshots/        one file per snapshot (tree, time, paths, tags)
 ```
 
-## Why the paths look like that
+## Encryption
 
-The sources are passed to rsync with `--relative`, so an absolute source
-`/home/soneriald/.config` becomes `<snapshot>/home/soneriald/.config`. This has
-two consequences:
+The repository key is derived from the password with `scrypt`; the master key
+is stored in `keys/` encrypted with it. Data and metadata are encrypted with
+AES-256 (CTR mode with a Poly1305 authenticator). Without the password file the
+repository is unreadable — there is no recovery path.
 
-- a snapshot is a faithful image of the absolute paths, which makes
-  `--link-dest` and restore path arithmetic trivial and unambiguous;
-- restoring into `/` puts every file back exactly where it was.
+Kustos generates the password on the first run and keeps it in
+`~/.config/kustos/repo.password` (mode 0600). The About dialog shows it; it
+must be stored somewhere else as well.
 
-## Hard links
+## Compression and deduplication
 
-`rsync -aHAX --link-dest=<previous snapshot>` compares the new tree with the
-previous snapshot and, for every unchanged file, creates a hard link instead of
-a copy. The bytes exist once on disk and are referenced from every snapshot.
-Deleting a snapshot only drops its links; the data survives in the snapshots
-that still reference it. Files that are modified in place by an application
-are copied on the next run (the old inode stays untouched in the old
-snapshots).
+Files are split into content-defined chunks (Rabin, ~1 MiB average). Each chunk
+is hashed, compressed with zstd and stored only once. Identical chunks — the
+same file in two snapshots, two copies of a photo, repeated source code — are
+stored once. This is why a snapshot of an almost unchanged home directory costs
+a few megabytes instead of tens of gigabytes.
 
-`--delete` makes the new snapshot reflect the current sources: files removed
-from the home folder disappear from the *new* snapshot only.
+## Snapshots
 
-## meta.json
+A snapshot is a tree of paths plus metadata:
 
-```json
-{
-  "id": "2026-11-18_19-00-00",
-  "started_at": "2026-11-18T19:00:01",
-  "finished_at": "2026-11-18T19:03:42",
-  "status": "ok",
-  "total_bytes": 34567890123,
-  "total_files": 412345,
-  "transferred_bytes": 12345678,
-  "transferred_files": 42,
-  "duration_seconds": 221,
-  "rsync_exit": 0,
-  "error": "",
-  "warnings": [],
-  "hostname": "host",
-  "app_version": "0.1.0",
-  "sources": ["/home/soneriald/.config"],
-  "excludes": ["/home/soneriald/.local/share/Steam"]
-}
-```
+- paths are relative to the snapshot root: `/home/user/.config` is stored as
+  `home/user/.config`;
+- Kustos tags every snapshot `kustos` and lists only tagged snapshots;
+- the snapshot id is a 64-character hex string; the UI shows the first 8
+  characters.
 
-`status` is one of `ok`, `warning` (rsync exit 23/24: some files or attributes
-were not transferred), `failed` (normally removed) or `running` (a backup is
-in progress). The file is written with `QSaveFile` and only after a successful
-run.
+Deleting a snapshot (`rustic forget <id>`) only drops its tree references;
+chunks that are still referenced by other snapshots stay.
 
 ## Retention
 
-Snapshots are thinned with a three-bucket policy, evaluated against the
-snapshot start time:
+After each successful backup Kustos runs
 
-1. everything younger than `hourlyHours` is kept;
-2. up to `dailyDays` days: the newest snapshot of each calendar day is kept;
-3. up to `weeklyWeeks` weeks after that: the newest snapshot of each ISO week
-   is kept;
-4. anything older is deleted.
+```
+rustic forget --keep-hourly H --keep-daily D --keep-weekly W --prune
+```
 
-The newest snapshot is always kept, even if it is the only one and it is older
-than every window. A snapshot is never thinned while it is the only one.
+which keeps the newest snapshot of every hour for `H` hours, then the newest of
+every day for `D` days, then the newest of every week for `W` weeks, and prunes
+unreferenced chunks. The newest snapshot is always kept.
 
 ## Restore semantics
 
-Every item is restored by a single `rsync -aHAX` run, which creates missing
-parent directories and preserves symlinks, permissions, hard links, ACLs and
-xattrs:
+Rustic restores one path at a time. Kustos restores it into a staging
+directory (`~/.cache/kustos/restore/…`), then copies it into place with
+`cp -a`, preserving mode, owner and timestamps:
 
-- `--to /` (default, "original location") writes `/<relative path>`;
-- `--to DIR` writes `DIR/<relative path>`, producing a safe parallel copy;
-- `--policy skip` leaves an existing target untouched;
-- `--policy keep_both` writes next to it as `name (restored <timestamp>)`;
-- anything else replaces the target.
+- destination `/` (default) — the original location;
+- destination folder — the same tree below that folder;
+- `--policy skip` keeps an existing target untouched;
+- `--policy keep_both` writes alongside as `name (restored <timestamp>)`;
+- otherwise the target is replaced.
 
-Paths are validated (no absolute paths, no `..`) before anything is copied.
+Hard links inside one snapshot are not recreated on restore; the content is
+still stored once in the repository.

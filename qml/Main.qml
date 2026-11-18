@@ -6,9 +6,8 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 
-// Window parameters follow Luma: a 960x640 Kirigami window with a 640x480
-// minimum, a GlobalDrawer for the application menu, and settings as an
-// overlay dialog instead of a separate page.
+// Window parameters follow Luma: a 960x640 window with a 640x480 minimum,
+// a GlobalDrawer for the application menu and settings as an overlay card.
 Kirigami.ApplicationWindow {
     id: root
 
@@ -19,91 +18,158 @@ Kirigami.ApplicationWindow {
     minimumHeight: 480
     title: qsTr("app_title")
 
+    property var snapshots: []
+    property var timelineItems: []
     property string selectedSnapshotId: ""
 
-    readonly property bool busy: Backup.running || Restore.running
-    readonly property int currentProgress: Restore.running ? Restore.progress : Backup.progress
+    property var backupStatus: ({
+        running: false, percent: 0, state: "idle", error: "",
+        speed: "", eta: "", files: 0, added: 0, snapshotId: "", current: ""
+    })
+    property var restoreStatus: ({
+        running: false, percent: 0, state: "idle", error: "", current: ""
+    })
+    property var schedulerStatus: ({ enabled: false, state: "absent", error: "", minutes: 60 })
+
+    readonly property bool busy: backupStatus.running || restoreStatus.running
+    readonly property int currentProgress: restoreStatus.running ? restoreStatus.percent : backupStatus.percent
+
+    function dayLabel(iso) {
+        const parts = String(iso).split("-");
+        if (parts.length !== 3)
+            return iso;
+        const date = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const diff = Math.round((today.getTime() - date.getTime()) / 86400000);
+        if (diff === 0)
+            return qsTr("day_today");
+        if (diff === 1)
+            return qsTr("day_yesterday");
+        return Qt.formatDate(date, "dddd, d MMMM yyyy");
+    }
+
+    function rebuildTimeline() {
+        let items = [];
+        let lastDay = "";
+        for (let i = 0; i < snapshots.length; ++i) {
+            const snapshot = snapshots[i];
+            if (snapshot.dayKey !== lastDay) {
+                lastDay = snapshot.dayKey;
+                items.push({ header: true, label: root.dayLabel(snapshot.dayKey) });
+            }
+            items.push({ header: false, snapshot: snapshot });
+        }
+        timelineItems = items;
+    }
 
     function ensureSelection() {
-        if (Timeline.count === 0) {
+        if (snapshots.length === 0) {
             selectedSnapshotId = "";
             return;
         }
-        if (selectedSnapshotId === "" || Timeline.indexOfId(selectedSnapshotId) < 0)
-            selectedSnapshotId = Timeline.get(0).id;
+        let found = false;
+        for (let i = 0; i < snapshots.length; ++i) {
+            if (snapshots[i].id === selectedSnapshotId)
+                found = true;
+        }
+        if (!found)
+            selectedSnapshotId = snapshots[0].id;
+    }
+
+    function refreshSnapshots() {
+        snapshots = Store.snapshots();
+        rebuildTimeline();
+        ensureSelection();
+    }
+
+    function startBackup() {
+        Backup.start();
+        backupStatus = Backup.poll();
+    }
+
+    function removeSnapshot(id) {
+        Store.remove(id);
+        refreshSnapshots();
     }
 
     function statusText() {
-        if (Restore.running) {
-            if (Restore.state === "cancelling")
+        if (restoreStatus.running) {
+            if (restoreStatus.state === "cancelling")
                 return qsTr("status_cancelling");
-            return qsTr("status_restoring").arg(Restore.currentItem);
+            return qsTr("status_restoring").arg(restoreStatus.current);
         }
-        if (Backup.running) {
-            if (Backup.state === "preparing")
+        if (backupStatus.running) {
+            if (backupStatus.state === "preparing")
                 return qsTr("status_preparing");
-            if (Backup.state === "cancelling")
+            if (backupStatus.state === "cancelling")
                 return qsTr("status_cancelling");
-            if (Backup.speedText === "")
+            if (backupStatus.speed === "")
                 return qsTr("status_working");
-            return qsTr("status_copying").arg(Backup.speedText).arg(Backup.etaText);
+            return qsTr("status_copying").arg(backupStatus.speed).arg(backupStatus.eta);
         }
         return "";
     }
 
     function statusSummary() {
-        const free = Store.availableText !== "" ? Store.availableText : "—";
-        return qsTr("status_summary").arg(Timeline.count).arg(Store.targetDir).arg(free);
+        return qsTr("status_summary")
+                .arg(snapshots.length)
+                .arg(Store.repoPath())
+                .arg(App.formatBytes(Store.freeBytes()));
     }
 
-    // Development-only hook for `aion --capture ... --capture-dialog <name>`.
-    function openDialogForCapture(name) {
-        if (name === "settings" || name.startsWith("settings:")) {
-            const parts = name.split(":");
-            settingsDialog.currentCategory = parts.length > 1 ? parts[1] : "general";
-            settingsDialog.open();
-            return;
+    function handleFinishedJobs() {
+        const nextBackup = Backup.poll();
+        const previousRunning = root.backupStatus.running;
+        if (previousRunning && !nextBackup.running) {
+            if (nextBackup.state === "done") {
+                root.selectedSnapshotId = nextBackup.snapshotId;
+                root.refreshSnapshots();
+                root.showPassiveNotification(qsTr("toast_backup_done"));
+            } else if (nextBackup.state === "failed") {
+                root.showPassiveNotification(qsTr("toast_backup_failed").arg(nextBackup.error));
+            }
         }
-        if (name === "about") {
-            aboutDialog.open();
-            return;
+        root.backupStatus = nextBackup;
+
+        const nextRestore = Restore.poll();
+        const restoring = root.restoreStatus.running;
+        if (restoring && !nextRestore.running) {
+            if (nextRestore.state === "done")
+                root.showPassiveNotification(qsTr("toast_restore_done").arg(nextRestore.added));
+            else if (nextRestore.state === "failed")
+                root.showPassiveNotification(qsTr("toast_restore_failed").arg(nextRestore.error));
         }
-        if (name === "restore") {
-            const paths = Object.keys(browserPanel.selectedPaths);
-            if (paths.length === 0 && Browser.count > 0)
-                paths.push(Browser.get(0).relativePath);
-            restoreDialog.openFor(root.selectedSnapshotId, paths);
-        }
+        root.restoreStatus = nextRestore;
     }
 
     onSelectedSnapshotIdChanged: {
         browserPanel.clearSelection();
-        if (selectedSnapshotId !== "")
-            Browser.setSnapshotId(selectedSnapshotId);
+        browserPanel.loadSnapshot(selectedSnapshotId);
     }
 
     globalDrawer: Kirigami.GlobalDrawer {
         title: qsTr("app_title")
-        titleIcon: "qrc:/assets/aion.png"
+        titleIcon: "qrc:/assets/kustos.png"
 
         actions: [
             Kirigami.Action {
                 text: qsTr("action_back_up_now")
                 icon.name: "document-save"
                 enabled: !root.busy
-                onTriggered: Backup.start()
+                onTriggered: backupDialog.open()
             },
             Kirigami.Action {
                 text: qsTr("action_restore")
                 icon.name: "document-revert"
                 enabled: browserPanel.selectionCount > 0 && !root.busy
                 onTriggered: restoreDialog.openFor(root.selectedSnapshotId,
-                                                   Object.keys(browserPanel.selectedPaths))
+                                                    Object.keys(browserPanel.selectedPaths))
             },
             Kirigami.Action {
                 text: qsTr("action_open_backup_folder")
                 icon.name: "folder-open"
-                onTriggered: App.openPath(Store.targetDir)
+                onTriggered: App.openPath(Store.repoPath())
             },
             Kirigami.Action { separator: true },
             Kirigami.Action {
@@ -137,14 +203,14 @@ Kirigami.ApplicationWindow {
                 text: qsTr("action_back_up_now")
                 icon.name: "document-save"
                 enabled: !root.busy
-                onTriggered: Backup.start()
+                onTriggered: backupDialog.open()
             },
             Kirigami.Action {
                 text: qsTr("action_restore")
                 icon.name: "document-revert"
                 enabled: browserPanel.selectionCount > 0 && !root.busy
                 onTriggered: restoreDialog.openFor(root.selectedSnapshotId,
-                                                   Object.keys(browserPanel.selectedPaths))
+                                                    Object.keys(browserPanel.selectedPaths))
             },
             Kirigami.Action {
                 text: qsTr("action_settings")
@@ -166,6 +232,7 @@ Kirigami.ApplicationWindow {
                     id: timelinePanel
                     Layout.preferredWidth: 310
                     Layout.fillHeight: true
+                    items: root.timelineItems
                     selectedId: root.selectedSnapshotId
                     onSnapshotActivated: (id) => root.selectedSnapshotId = id
                     onDeleteRequested: (id) => deleteDialog.openFor(id)
@@ -182,6 +249,7 @@ Kirigami.ApplicationWindow {
                     id: browserPanel
                     Layout.fillWidth: true
                     Layout.fillHeight: true
+                    busy: root.busy
                     onRestoreRequested: restoreDialog.openFor(root.selectedSnapshotId,
                                                               Object.keys(browserPanel.selectedPaths))
                 }
@@ -204,7 +272,7 @@ Kirigami.ApplicationWindow {
                         from: 0
                         to: 100
                         value: Math.max(0, root.currentProgress)
-                        indeterminate: root.currentProgress < 0
+                        indeterminate: root.currentProgress <= 0
                     }
                     Label {
                         text: root.statusText()
@@ -215,7 +283,7 @@ Kirigami.ApplicationWindow {
                     }
                     Button {
                         text: qsTr("action_cancel")
-                        onClicked: Restore.running ? Restore.cancel() : Backup.cancel()
+                        onClicked: Restore.cancel()
                     }
                 }
 
@@ -236,7 +304,7 @@ Kirigami.ApplicationWindow {
         Kirigami.PlaceholderMessage {
             anchors.centerIn: parent
             width: parent.width - 120
-            visible: Timeline.count === 0
+            visible: root.snapshots.length === 0
             icon.name: "document-save"
             text: qsTr("empty_title")
             explanation: qsTr("empty_hint")
@@ -244,14 +312,38 @@ Kirigami.ApplicationWindow {
                 text: qsTr("action_back_up_now")
                 icon.name: "document-save"
                 enabled: !root.busy
-                onTriggered: Backup.start()
+                onTriggered: backupDialog.open()
             }
         }
     }
 
+    BackupDialog {
+        id: backupDialog
+        onStartRequested: root.startBackup()
+    }
     RestoreDialog { id: restoreDialog }
-    SettingsDialog { id: settingsDialog }
+    SettingsDialog {
+        id: settingsDialog
+        onScopeRequested: {
+            settingsDialog.close();
+            backupDialog.open();
+        }
+    }
     AboutDialog { id: aboutDialog }
+
+    Timer {
+        interval: 250
+        repeat: true
+        running: root.busy
+        onTriggered: root.handleFinishedJobs()
+    }
+
+    Timer {
+        interval: 1500
+        repeat: true
+        running: true
+        onTriggered: root.schedulerStatus = Scheduler.poll()
+    }
 
     Dialog {
         id: deleteDialog
@@ -276,7 +368,7 @@ Kirigami.ApplicationWindow {
             Label {
                 Layout.fillWidth: true
                 wrapMode: Text.WordWrap
-                text: qsTr("delete_snapshot_message").arg(deleteDialog.snapshotId)
+                text: qsTr("delete_snapshot_message").arg(deleteDialog.snapshotId.substring(0, 8))
                 color: Kirigami.Theme.textColor
                 font.pixelSize: 14
             }
@@ -295,41 +387,44 @@ Kirigami.ApplicationWindow {
                     icon.name: "edit-delete"
                     onClicked: {
                         deleteDialog.close();
-                        Store.removeSnapshot(deleteDialog.snapshotId);
+                        root.removeSnapshot(deleteDialog.snapshotId);
                     }
                 }
             }
         }
     }
 
-    Connections {
-        target: Timeline
-        function onCountChanged() { root.ensureSelection(); }
+    // Development-only: `kustos --capture [--capture-dialog settings|about|restore]`
+    // renders the window to /tmp/kustos-capture.png and quits.
+    property string captureFile: typeof CapturePath !== "undefined" ? CapturePath : ""
+    property string captureDialog: typeof CaptureDialog !== "undefined" ? CaptureDialog : ""
+
+    function captureRequested() {
+        return root.captureFile !== "";
     }
 
-    Connections {
-        target: Backup
-        function onFinished(ok, snapshotId) {
-            if (ok) {
-                root.selectedSnapshotId = snapshotId;
-                root.showPassiveNotification(qsTr("toast_backup_done"));
-            } else if (Backup.state !== "cancelled") {
-                root.showPassiveNotification(qsTr("toast_backup_failed").arg(Backup.errorMessage));
-            }
-            if (ok && Backup.warnings.length > 0)
-                root.showPassiveNotification(Backup.warnings.join("\n"));
-        }
+    function captureDialogName() {
+        return root.captureDialog;
     }
 
-    Connections {
-        target: Restore
-        function onFinished(ok, restoredCount) {
-            if (ok)
-                root.showPassiveNotification(qsTr("toast_restore_done").arg(restoredCount));
-            else if (Restore.state !== "cancelled")
-                root.showPassiveNotification(qsTr("toast_restore_failed").arg(Restore.errorMessage));
-        }
+    function openDialogForCapture(name) {
+        if (name === "settings")
+            settingsDialog.open();
+        else if (name === "about")
+            aboutDialog.open();
+        else if (name === "backup")
+            backupDialog.open();
+        else if (name === "restore" && root.selectedSnapshotId !== "")
+            restoreDialog.openFor(root.selectedSnapshotId, []);
     }
 
-    Component.onCompleted: root.ensureSelection()
+    Component.onCompleted: {
+        console.log("KUSTOS_QML_READY capture=" + root.captureFile);
+        root.refreshSnapshots();
+        root.schedulerStatus = Scheduler.poll();
+        root.backupStatus = Backup.poll();
+        root.restoreStatus = Restore.poll();
+        if (root.captureRequested())
+            root.openDialogForCapture(root.captureDialogName());
+    }
 }

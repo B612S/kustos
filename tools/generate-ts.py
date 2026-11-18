@@ -3,7 +3,7 @@
 # SPDX-FileCopyrightText: 2026 B612S <sem.alimov@inbox.ru>
 """Regenerates locales/en.ts and locales/ru.ts from the translation keys.
 
-Aion uses key-style sources (qsTr("settings_language"), Loc::t("error_no_sources"))
+Kustos uses key-style sources (qsTr("settings_language"), Loc::t("error_no_sources"))
 so a missing translation is a hard error instead of a silently English UI. Run
 this script after adding or renaming a key; it fails when a key has no entry.
 
@@ -22,13 +22,13 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 # key: (English, Russian)
 TRANSLATIONS: dict[str, tuple[str, str]] = {
     # ---- application shell (Main.qml) ----
-    "app_title": ("Aion", "Aion"),
+    "app_title": ("Kustos", "Kustos"),
     "action_back_up_now": ("Back Up Now", "Создать резервную копию"),
     "action_restore": ("Restore…", "Восстановить…"),
     "action_cancel": ("Cancel", "Отмена"),
     "action_delete": ("Delete", "Удалить"),
     "action_settings": ("Settings", "Настройки"),
-    "action_about": ("About Aion", "О программе"),
+    "action_about": ("About Kustos", "О программе"),
     "action_quit": ("Quit", "Выход"),
     "action_open_backup_folder": ("Open Backup Folder", "Открыть папку копий"),
     "delete_snapshot_title": ("Delete Snapshot", "Удалить снимок"),
@@ -38,9 +38,9 @@ TRANSLATIONS: dict[str, tuple[str, str]] = {
     ),
     "empty_title": ("No backups yet", "Резервных копий пока нет"),
     "empty_hint": (
-        "Aion keeps a history of your home folder, like Time Machine. "
+        "Kustos keeps a history of your home folder, like Time Machine. "
         "Every snapshot stores only what changed since the previous one.",
-        "Aion хранит историю домашней папки, как Time Machine. "
+        "Kustos хранит историю домашней папки, как Time Machine. "
         "Каждый снимок занимает место только за изменения с предыдущего.",
     ),
     "status_cancelling": ("Cancelling…", "Отмена…"),
@@ -66,7 +66,7 @@ TRANSLATIONS: dict[str, tuple[str, str]] = {
     "snapshot_added": ("%1 added", "добавлено %1"),
     "snapshot_latest": ("Latest", "Последняя"),
     "snapshot_status_failed": ("Failed", "Ошибка"),
-    "menu_reveal_snapshot": ("Show in File Manager", "Показать в файловом менеджере"),
+    "menu_copy_id": ("Copy Snapshot ID", "Скопировать ID снимка"),
     "menu_delete_snapshot": ("Delete Snapshot…", "Удалить снимок…"),
 
     # ---- browser (SnapshotBrowser.qml) ----
@@ -99,11 +99,30 @@ TRANSLATIONS: dict[str, tuple[str, str]] = {
 
     # ---- settings (SettingsDialog.qml) ----
     "settings_title": ("Settings", "Настройки"),
+    "backup_title": ("What to Back Up", "Что копировать"),
+    "backup_include_title": ("Folders to back up", "Какие папки копировать"),
+    "backup_include_hint": (
+        "Every listed folder and file is copied into the snapshot.",
+        "Все перечисленные папки и файлы попадают в снимок.",
+    ),
+    "backup_exclude_title": ("Excluded paths", "Исключения"),
+    "backup_exclude_hint": (
+        "Nothing below these paths is copied, even if it is inside a backed-up folder.",
+        "Ничего внутри этих путей не копируется, даже если они лежат внутри копируемой папки.",
+    ),
+    "backup_add_folder": ("Add Folder…", "Добавить папку…"),
+    "backup_add_file": ("Add File…", "Добавить файл…"),
+    "backup_add_exclude": ("Exclude Folder…", "Исключить папку…"),
+    "backup_no_sources": (
+        "Add at least one folder or file to back up.",
+        "Добавьте хотя бы одну папку или файл для копирования.",
+    ),
+    "settings_scope": ("Backup Scope…", "Что копировать…"),
     "settings_general": ("General", "Общие"),
     "settings_sources": ("Sources", "Источники"),
     "settings_schedule": ("Schedule", "Расписание"),
     "settings_retention": ("Retention", "Хранение"),
-    "settings_target": ("Backup folder", "Папка резервных копий"),
+    "settings_repo": ("Repository folder", "Папка репозитория"),
     "settings_choose_folder": ("Choose Folder", "Выбрать папку"),
     "settings_language": ("Language", "Язык"),
     "language_auto": ("System", "Системный"),
@@ -145,30 +164,45 @@ TRANSLATIONS: dict[str, tuple[str, str]] = {
     "settings_keep_daily": ("Keep daily snapshots for (days)", "Хранить ежедневные (дней)"),
     "settings_keep_weekly": ("Keep weekly snapshots for (weeks)", "Хранить еженедельные (недель)"),
     "settings_prune_now": ("Prune Now", "Проредить сейчас"),
-    "settings_pruned": ("Removed %1 snapshot(s)", "Удалено снимков: %1"),
+    "settings_pruned_now": ("Retention policy applied", "Политика хранения применена"),
     "settings_nothing_to_prune": ("Nothing to prune", "Нечего удалять"),
 
     # ---- about (AboutDialog.qml) ----
-    "about_title": ("About Aion", "О программе Aion"),
+    "about_title": ("About Kustos", "О программе Kustos"),
     "about_version": ("Version %1", "Версия %1"),
     "about_description": (
-        "Time Machine-like snapshots of your home folder. Every snapshot is an rsync "
-        "hard-link tree, so files that did not change take no extra space.",
-        "Снимки домашней папки в духе Time Machine. Каждый снимок — дерево жёстких "
-        "ссылок rsync, поэтому неизменённые файлы не занимают дополнительного места.",
+        "Time Machine-like snapshots of your home folder. Snapshots live in an "
+        "encrypted, compressed, deduplicated repository (restic format), so unchanged "
+        "data never costs extra space.",
+        "Снимки домашней папки в духе Time Machine. Они лежат в зашифрованном, сжатом "
+        "репозитории с дедупликацией (формат restic), поэтому неизменённые данные не "
+        "занимают лишнего места.",
     ),
-    "about_backup_folder": ("Backup folder", "Папка копий"),
+    "about_repo": ("Repository", "Репозиторий"),
     "about_config": ("Configuration", "Настройки"),
     "about_log": ("Log", "Журнал"),
     "about_credits": (
-        "Built with Qt 6, Kirigami and rsync. Window, menu and localization "
-        "conventions follow Luma.",
-        "Сделано на Qt 6, Kirigami и rsync. Конвенции окон, меню и локализации — как в Luma.",
+        "Built with Rust, Qt 6, Kirigami and rustic (restic-compatible repositories). "
+        "Window, menu and localization conventions follow Luma.",
+        "Сделано на Rust, Qt 6, Kirigami и rustic (репозитории формата restic). "
+        "Конвенции окон, меню и локализации — как в Luma.",
     ),
+    "about_key": ("Repository key", "Ключ репозитория"),
+    "about_key_hint": (
+        "The key decrypts every snapshot. It is stored in ~/.config/kustos/repo.password "
+        "and is the only way to read the backups if this machine is lost — save it "
+        "somewhere else, for example in a password manager.",
+        "Ключ расшифровывает все снимки. Он хранится в ~/.config/kustos/repo.password и "
+        "является единственным способом прочитать копии, если этот компьютер потеряется — "
+        "сохраните его отдельно, например в менеджере паролей.",
+    ),
+    "action_show": ("Show", "Показать"),
+    "action_hide": ("Hide", "Скрыть"),
+    "action_copy_key": ("Copy Key", "Скопировать ключ"),
     "about_license": ("License: GPL-3.0-or-later", "Лицензия: GPL-3.0-or-later"),
     "action_close": ("Close", "Закрыть"),
 
-    # ---- C++ messages (context "aion", Loc::t) ----
+    # ---- C++ messages (context "kustos", Loc::t) ----
     "error_no_target": ("The backup folder is not configured", "Не задана папка резервных копий"),
     "error_target_missing": ("Cannot create %1", "Не удаётся создать %1"),
     "error_target_not_writable": ("No write access to %1", "Нет прав на запись в %1"),
@@ -217,17 +251,16 @@ def qml_contexts() -> dict[str, list[str]]:
 
 
 def cpp_keys() -> list[str]:
-    keys: set[str] = set()
-    for path in [ROOT / "main.cpp", *sorted((ROOT / "core").rglob("*.cpp"))]:
-        keys.update(LOC_RE.findall(path.read_text(encoding="utf-8")))
-    return sorted(keys)
+    """Keys used outside QML. The Rust code keeps user-visible strings in QML
+    only, so this stays empty; it is kept for future non-QML messages."""
+    return []
 
 
 def render(language: str, index: int) -> str:
     contexts = qml_contexts()
     cpp = cpp_keys()
     if cpp:
-        contexts["aion"] = cpp
+        contexts["kustos"] = cpp
 
     missing = sorted(
         key

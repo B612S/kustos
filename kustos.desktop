@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-FileCopyrightText: 2026 B612S <sem.alimov@inbox.ru>
+
+[Desktop Entry]
+Type=Application
+Name=Kustos
+GenericName=Backup
+GenericName[ru]=Резервное копирование
+Comment=Time Machine for your home folder
+Comment[ru]=Машина времени для домашней папки
+Exec=kustos
+TryExec=kustos
+Icon=kustos
+Terminal=false
+Categories=System;Utility;Archiving;
+Keywords=Kustos;backup;snapshot;restore;history;time;machine;rsync;
+Keywords[ru]=Kustos;резервное;копия;снимок;восстановление;история;машина;времени;rsync;
+StartupNotify=true
+StartupWMClass=kustos

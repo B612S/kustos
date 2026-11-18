@@ -14,9 +14,11 @@ Dialog {
     title: qsTr("about_title")
     padding: 18
 
-    width: Math.min(520, (Overlay.overlay ? Overlay.overlay.width : 800) - 40)
+    width: Math.min(560, (Overlay.overlay ? Overlay.overlay.width : 800) - 40)
     x: Math.max(12, (Overlay.overlay.width - width) / 2)
     y: Math.max(12, (Overlay.overlay.height - height) / 2)
+
+    property bool keyVisible: false
 
     background: Rectangle {
         color: Qt.rgba(Kirigami.Theme.backgroundColor.r,
@@ -35,7 +37,7 @@ Dialog {
             spacing: 14
 
             Image {
-                source: "qrc:/assets/aion.png"
+                source: "qrc:/assets/kustos.png"
                 sourceSize.width: 64
                 sourceSize.height: 64
                 Layout.preferredWidth: 64
@@ -44,13 +46,13 @@ Dialog {
             ColumnLayout {
                 spacing: 2
                 Label {
-                    text: "Aion"
+                    text: "Kustos"
                     font.pixelSize: 22
                     font.weight: Font.Bold
                     color: Kirigami.Theme.textColor
                 }
                 Label {
-                    text: qsTr("about_version").arg(App.version)
+                    text: qsTr("about_version").arg(App.version())
                     font.pixelSize: 12
                     opacity: 0.7
                     color: Kirigami.Theme.textColor
@@ -73,7 +75,7 @@ Dialog {
             Layout.fillWidth: true
 
             Label {
-                text: qsTr("about_backup_folder")
+                text: qsTr("about_repo")
                 font.pixelSize: 12
                 opacity: 0.7
                 color: Kirigami.Theme.textColor
@@ -82,14 +84,14 @@ Dialog {
                 Layout.fillWidth: true
                 Label {
                     Layout.fillWidth: true
-                    text: Config.targetDir
+                    text: Store.repoPath()
                     font.pixelSize: 12
                     elide: Text.ElideMiddle
                     color: Kirigami.Theme.textColor
                 }
                 ToolButton {
                     icon.name: "folder-open"
-                    onClicked: App.openPath(Config.targetDir)
+                    onClicked: App.openPath(Store.repoPath())
                 }
             }
 
@@ -103,14 +105,14 @@ Dialog {
                 Layout.fillWidth: true
                 Label {
                     Layout.fillWidth: true
-                    text: App.configPath
+                    text: App.configPath()
                     font.pixelSize: 12
                     elide: Text.ElideMiddle
                     color: Kirigami.Theme.textColor
                 }
                 ToolButton {
                     icon.name: "text-plain"
-                    onClicked: App.openPath(App.configPath)
+                    onClicked: App.openPath(App.configPath())
                 }
             }
 
@@ -124,16 +126,59 @@ Dialog {
                 Layout.fillWidth: true
                 Label {
                     Layout.fillWidth: true
-                    text: App.logPath
+                    text: App.logPath()
                     font.pixelSize: 12
                     elide: Text.ElideMiddle
                     color: Kirigami.Theme.textColor
                 }
                 ToolButton {
                     icon.name: "text-plain"
-                    onClicked: App.openPath(App.logPath)
+                    onClicked: App.openPath(App.logPath())
                 }
             }
+        }
+
+        Rectangle {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 1
+            color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g,
+                           Kirigami.Theme.textColor.b, 0.15)
+        }
+
+        Label {
+            Layout.fillWidth: true
+            text: qsTr("about_key")
+            font.pixelSize: 13
+            font.weight: Font.DemiBold
+            color: Kirigami.Theme.textColor
+        }
+        Label {
+            Layout.fillWidth: true
+            text: dialog.keyVisible ? Store.password() : "••••••••••••••••"
+            font.pixelSize: 13
+            font.family: "monospace"
+            wrapMode: Text.WrapAnywhere
+            color: Kirigami.Theme.textColor
+        }
+        RowLayout {
+            spacing: 8
+            Button {
+                text: dialog.keyVisible ? qsTr("action_hide") : qsTr("action_show")
+                onClicked: dialog.keyVisible = !dialog.keyVisible
+            }
+            Button {
+                text: qsTr("action_copy_key")
+                icon.name: "edit-copy"
+                onClicked: App.copyText(Store.password())
+            }
+        }
+        Label {
+            Layout.fillWidth: true
+            text: qsTr("about_key_hint")
+            wrapMode: Text.WordWrap
+            font.pixelSize: 11
+            opacity: 0.7
+            color: Kirigami.Theme.textColor
         }
 
         Label {

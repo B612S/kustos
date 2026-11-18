@@ -7,18 +7,34 @@ import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 
 // File browser for one snapshot: breadcrumbs, a list with selection and the
-// restore entry point. It never shows the live home directory, only the
-// contents of the selected snapshot.
+// restore entry point. Contents come from the Rust `Browser` object, which
+// keeps the snapshot listing in memory.
 Rectangle {
     id: panel
 
     color: Kirigami.Theme.backgroundColor
 
-    // Relative paths selected for restore, used as a set.
+    property var entries: []
+    property string displayPath: "/"
+    property bool canUp: false
+    property bool hasSnapshot: false
+    property bool busy: false
     property var selectedPaths: ({})
     readonly property int selectionCount: Object.keys(selectedPaths).length
 
     signal restoreRequested()
+
+    function loadSnapshot(id) {
+        Browser.setSnapshot(id);
+        hasSnapshot = id !== "";
+        refresh();
+    }
+
+    function refresh() {
+        entries = Browser.entries();
+        displayPath = Browser.displayPath();
+        canUp = Browser.canGoUp();
+    }
 
     function isSelected(relative) {
         return selectedPaths[relative] === true;
@@ -35,10 +51,8 @@ Rectangle {
 
     function selectAll() {
         const copy = Object.assign({}, selectedPaths);
-        for (let i = 0; i < Browser.count; ++i) {
-            const entry = Browser.get(i);
-            copy[entry.relativePath] = true;
-        }
+        for (let i = 0; i < entries.length; ++i)
+            copy[entries[i].relativePath] = true;
         selectedPaths = copy;
     }
 
@@ -46,24 +60,38 @@ Rectangle {
         selectedPaths = ({});
     }
 
+    function enterRow(row) {
+        if (row < 0 || row >= entries.length)
+            return;
+        if (!entries[row].isDir) {
+            App.openPath(Store.repoPath());
+            return;
+        }
+        Browser.setPath(entries[row].relativePath);
+        refresh();
+    }
+
+    function goUp() {
+        Browser.goUp();
+        refresh();
+    }
+
     function breadcrumbs() {
-        const display = Browser.displayPath;
-        if (display === "/")
+        const relative = Browser.path();
+        const home = Browser.homeRoot();
+        if (relative === "")
             return [{ label: "/", path: "" }];
-        const home = Store.homeRoot;
-        const parts = display.split("/");
+        const parts = String(relative).split("/");
         const result = [];
         let path = "";
         for (let i = 0; i < parts.length; ++i) {
             if (parts[i] === "")
                 continue;
-            if (i === 0) {
-                path = (parts[0] === "~") ? home : parts[0];
-                result.push({ label: parts[0], path: path });
-                continue;
-            }
-            path += "/" + parts[i];
-            result.push({ label: parts[i], path: path });
+            path += (path === "" ? "" : "/") + parts[i];
+            result.push({
+                label: path === home ? "~" : parts[i],
+                path: path
+            });
         }
         return result;
     }
@@ -79,8 +107,8 @@ Rectangle {
 
             ToolButton {
                 icon.name: "go-up"
-                enabled: Browser.canGoUp
-                onClicked: Browser.goUp()
+                enabled: panel.canUp
+                onClicked: panel.goUp()
                 ToolTip.text: qsTr("browser_up")
                 ToolTip.visible: hovered
             }
@@ -117,7 +145,10 @@ Rectangle {
                                 text: modelData.label
                                 font.pixelSize: 13
                                 height: crumbs.height
-                                onClicked: Browser.setRelativePath(modelData.path)
+                                onClicked: {
+                                    Browser.setPath(modelData.path);
+                                    panel.refresh();
+                                }
                             }
                         }
                     }
@@ -134,7 +165,7 @@ Rectangle {
 
             ToolButton {
                 icon.name: "edit-select-all"
-                enabled: Browser.count > 0
+                enabled: panel.entries.length > 0
                 onClicked: panel.selectAll()
                 ToolTip.text: qsTr("browser_select_all")
                 ToolTip.visible: hovered
@@ -149,7 +180,7 @@ Rectangle {
             Button {
                 text: qsTr("action_restore")
                 icon.name: "document-revert"
-                enabled: panel.selectionCount > 0 && !Restore.running
+                enabled: panel.selectionCount > 0 && !panel.busy
                 onClicked: panel.restoreRequested()
             }
         }
@@ -166,14 +197,14 @@ Rectangle {
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
-            model: Browser
+            model: panel.entries
 
             delegate: Rectangle {
                 id: fileRow
 
                 width: list.width
                 height: 38
-                color: panel.isSelected(model.relativePath)
+                color: panel.isSelected(modelData.relativePath)
                        ? Qt.rgba(Kirigami.Theme.highlightColor.r,
                                  Kirigami.Theme.highlightColor.g,
                                  Kirigami.Theme.highlightColor.b, 0.25)
@@ -189,27 +220,27 @@ Rectangle {
                     spacing: 8
 
                     Kirigami.Icon {
-                        source: model.isDir ? "folder" : "text-x-generic"
+                        source: modelData.isDir ? "folder" : "text-x-generic"
                         implicitWidth: 18
                         implicitHeight: 18
                         Layout.alignment: Qt.AlignVCenter
                     }
                     Label {
-                        text: model.name
+                        text: modelData.name
                         Layout.fillWidth: true
                         elide: Text.ElideMiddle
                         font.pixelSize: 13
                         color: Kirigami.Theme.textColor
                     }
                     Label {
-                        text: model.modifiedText
+                        text: modelData.modifiedText
                         visible: list.width > 520
                         font.pixelSize: 12
                         opacity: 0.5
                         color: Kirigami.Theme.textColor
                     }
                     Label {
-                        text: model.sizeText
+                        text: modelData.isDir ? "" : modelData.sizeText
                         horizontalAlignment: Text.AlignRight
                         Layout.preferredWidth: 80
                         font.pixelSize: 12
@@ -217,7 +248,7 @@ Rectangle {
                         color: Kirigami.Theme.textColor
                     }
                     Kirigami.Icon {
-                        visible: panel.isSelected(model.relativePath)
+                        visible: panel.isSelected(modelData.relativePath)
                         source: "checkmark"
                         implicitWidth: 14
                         implicitHeight: 14
@@ -233,17 +264,17 @@ Rectangle {
                     acceptedButtons: Qt.LeftButton | Qt.RightButton
                     onClicked: (mouse) => {
                         if (mouse.button === Qt.RightButton) {
-                            fileMenu.relative = model.relativePath;
+                            fileMenu.relative = modelData.relativePath;
                             fileMenu.openAt(fileRow, fileRow.width / 2, fileRow.height / 2);
                         } else {
-                            panel.toggle(model.relativePath);
+                            panel.toggle(modelData.relativePath);
                         }
                     }
                     onDoubleClicked: {
-                        if (model.isDir)
-                            Browser.setRelativePath(model.relativePath);
-                        else
-                            App.openPath(Browser.absolutePathFor(model.relativePath));
+                        if (modelData.isDir) {
+                            Browser.setPath(modelData.relativePath);
+                            panel.refresh();
+                        }
                     }
                 }
             }
@@ -255,13 +286,13 @@ Rectangle {
     Kirigami.PlaceholderMessage {
         anchors.centerIn: parent
         width: parent.width - 80
-        visible: Browser.count === 0
+        visible: panel.entries.length === 0 && panel.hasSnapshot
         icon.name: "folder-empty"
         text: qsTr("browser_empty")
         explanation: qsTr("browser_empty_hint")
     }
 
-    AionMenu {
+    KustosMenu {
         id: fileMenu
         width: 230
 
@@ -269,7 +300,7 @@ Rectangle {
 
         Column {
             width: parent.width
-            AionMenuButton {
+            KustosMenuButton {
                 text: qsTr("menu_restore_item")
                 onClicked: {
                     panel.selectedPaths = ({ [fileMenu.relative]: true });
@@ -277,17 +308,10 @@ Rectangle {
                     panel.restoreRequested();
                 }
             }
-            AionMenuButton {
-                text: qsTr("menu_reveal_item")
-                onClicked: {
-                    App.openPath(Browser.absolutePathFor(fileMenu.relative));
-                    fileMenu.close();
-                }
-            }
-            AionMenuButton {
+            KustosMenuButton {
                 text: qsTr("menu_copy_path")
                 onClicked: {
-                    App.copyText(Browser.absolutePathFor(fileMenu.relative));
+                    App.copyText(fileMenu.relative);
                     fileMenu.close();
                 }
             }

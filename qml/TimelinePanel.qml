@@ -6,38 +6,22 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 
-// Vertical timeline of snapshots, grouped by day (ListView sections), newest
-// first. This is the Time Machine "star field" reduced to what a desktop list
-// can usefully show: time, date, how much was added and which snapshot is the
-// current one.
+// Vertical timeline: day headers and snapshots, newest first.
 Rectangle {
     id: panel
 
     color: Kirigami.Theme.alternativeBackgroundColor
 
+    property var items: []
     property string selectedId: ""
+
     signal snapshotActivated(string id)
     signal deleteRequested(string id)
 
-    function dayLabel(iso) {
-        const parts = iso.split("-");
-        if (parts.length !== 3)
-            return iso;
-        const date = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
-        const now = new Date();
-        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        const diff = Math.round((today.getTime() - date.getTime()) / 86400000);
-        if (diff === 0)
-            return qsTr("day_today");
-        if (diff === 1)
-            return qsTr("day_yesterday");
-        return Qt.formatDate(date, "dddd, d MMMM yyyy");
-    }
-
-    function statusColor(status) {
-        if (status === "failed")
+    function statusColor(state) {
+        if (state === "failed")
             return Kirigami.Theme.negativeTextColor;
-        if (status === "warning")
+        if (state === "warning")
             return "#f5a623";
         return Kirigami.Theme.positiveTextColor;
     }
@@ -61,7 +45,7 @@ Rectangle {
             }
             Item { Layout.fillWidth: true }
             Label {
-                text: qsTr("timeline_count").arg(Timeline.count)
+                text: qsTr("timeline_count").arg(panel.snapshotCount())
                 font.pixelSize: 12
                 opacity: 0.6
                 color: Kirigami.Theme.textColor
@@ -73,91 +57,96 @@ Rectangle {
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
-            model: Timeline
-            section.property: "dayKey"
-            section.criteria: ViewSection.FullString
-            section.delegate: Rectangle {
+            model: panel.items
+
+            delegate: Rectangle {
+                id: rowItem
+
                 width: list.width
-                height: 34
+                height: modelData.header ? 34 : 62
                 color: "transparent"
 
                 Label {
+                    visible: modelData.header
                     anchors.left: parent.left
                     anchors.leftMargin: 12
                     anchors.verticalCenter: parent.verticalCenter
-                    text: panel.dayLabel(section)
+                    text: modelData.header ? modelData.label : ""
                     font.pixelSize: 12
                     font.weight: Font.DemiBold
                     opacity: 0.55
                     color: Kirigami.Theme.textColor
                 }
-            }
-            delegate: ItemDelegate {
-                id: snapshotRow
 
-                width: list.width
-                height: 62
-                highlighted: panel.selectedId === model.id
+                ItemDelegate {
+                    id: snapshotRow
+                    visible: !modelData.header
+                    anchors.fill: parent
+                    highlighted: !modelData.header && panel.selectedId === modelData.snapshot.id
 
-                contentItem: RowLayout {
-                    spacing: 10
+                    contentItem: RowLayout {
+                        spacing: 10
 
-                    Rectangle {
-                        Layout.alignment: Qt.AlignVCenter
-                        width: 8
-                        height: 8
-                        radius: 4
-                        color: panel.statusColor(model.status)
-                    }
-
-                    ColumnLayout {
-                        Layout.fillWidth: true
-                        spacing: 1
-
-                        Label {
-                            text: model.timeText
-                            font.pixelSize: 15
-                            font.weight: Font.DemiBold
-                            color: Kirigami.Theme.textColor
+                        Rectangle {
+                            Layout.alignment: Qt.AlignVCenter
+                            width: 8
+                            height: 8
+                            radius: 4
+                            color: modelData.header ? "transparent" : panel.statusColor("ok")
                         }
-                        Label {
-                            text: (model.status === "failed")
-                                  ? qsTr("snapshot_status_failed")
-                                  : qsTr("snapshot_added").arg(App.formatBytes(model.addedBytes))
-                            font.pixelSize: 12
-                            opacity: 0.65
-                            elide: Text.ElideRight
-                            color: Kirigami.Theme.textColor
+
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 1
+
+                            Label {
+                                text: modelData.header ? "" : modelData.snapshot.timeText
+                                font.pixelSize: 15
+                                font.weight: Font.DemiBold
+                                color: Kirigami.Theme.textColor
+                            }
+                            Label {
+                                text: modelData.header ? "" : qsTr("snapshot_added").arg(modelData.snapshot.addedText)
+                                font.pixelSize: 12
+                                opacity: 0.65
+                                elide: Text.ElideRight
+                                color: Kirigami.Theme.textColor
+                            }
                         }
-                    }
 
-                    Rectangle {
-                        visible: model.isLatest
-                        Layout.alignment: Qt.AlignVCenter
-                        radius: 4
-                        color: Qt.rgba(Kirigami.Theme.highlightColor.r,
-                                       Kirigami.Theme.highlightColor.g,
-                                       Kirigami.Theme.highlightColor.b, 0.18)
-                        implicitWidth: latestLabel.implicitWidth + 12
-                        implicitHeight: latestLabel.implicitHeight + 4
+                        Rectangle {
+                            visible: !modelData.header && modelData.snapshot.isLatest
+                            Layout.alignment: Qt.AlignVCenter
+                            radius: 4
+                            color: Qt.rgba(Kirigami.Theme.highlightColor.r,
+                                           Kirigami.Theme.highlightColor.g,
+                                           Kirigami.Theme.highlightColor.b, 0.18)
+                            implicitWidth: latestLabel.implicitWidth + 12
+                            implicitHeight: latestLabel.implicitHeight + 4
 
-                        Label {
-                            id: latestLabel
-                            anchors.centerIn: parent
-                            text: qsTr("snapshot_latest")
-                            font.pixelSize: 11
-                            color: Kirigami.Theme.highlightColor
+                            Label {
+                                id: latestLabel
+                                anchors.centerIn: parent
+                                text: qsTr("snapshot_latest")
+                                font.pixelSize: 11
+                                color: Kirigami.Theme.highlightColor
+                            }
                         }
                     }
-                }
 
-                onClicked: panel.snapshotActivated(model.id)
+                    onClicked: {
+                        if (!modelData.header)
+                            panel.snapshotActivated(modelData.snapshot.id);
+                    }
 
-                TapHandler {
-                    acceptedButtons: Qt.RightButton
-                    onTapped: {
-                        snapshotMenu.snapshotId = model.id;
-                        snapshotMenu.openAt(snapshotRow, snapshotRow.width / 2, snapshotRow.height / 2);
+                    TapHandler {
+                        acceptedButtons: Qt.RightButton
+                        onTapped: {
+                            if (modelData.header)
+                                return;
+                            snapshotMenu.snapshotId = modelData.snapshot.id;
+                            snapshotMenu.openAt(snapshotRow, snapshotRow.width / 2, snapshotRow.height / 2);
+                        }
                     }
                 }
             }
@@ -168,7 +157,7 @@ Rectangle {
         Label {
             Layout.fillWidth: true
             Layout.margins: 16
-            visible: Timeline.count === 0
+            visible: panel.snapshotCount() === 0
             horizontalAlignment: Text.AlignHCenter
             wrapMode: Text.WordWrap
             text: qsTr("timeline_empty")
@@ -178,7 +167,16 @@ Rectangle {
         }
     }
 
-    AionMenu {
+    function snapshotCount() {
+        let count = 0;
+        for (let i = 0; i < items.length; ++i) {
+            if (!items[i].header)
+                count += 1;
+        }
+        return count;
+    }
+
+    KustosMenu {
         id: snapshotMenu
         width: 230
 
@@ -186,21 +184,14 @@ Rectangle {
 
         Column {
             width: parent.width
-            AionMenuButton {
-                text: qsTr("menu_reveal_snapshot")
+            KustosMenuButton {
+                text: qsTr("menu_copy_id")
                 onClicked: {
-                    App.openPath(Store.snapshotPath(snapshotMenu.snapshotId));
+                    App.copyText(snapshotMenu.snapshotId);
                     snapshotMenu.close();
                 }
             }
-            AionMenuButton {
-                text: qsTr("menu_copy_path")
-                onClicked: {
-                    App.copyText(Store.snapshotPath(snapshotMenu.snapshotId));
-                    snapshotMenu.close();
-                }
-            }
-            AionMenuButton {
+            KustosMenuButton {
                 text: qsTr("menu_delete_snapshot")
                 destructive: true
                 onClicked: {

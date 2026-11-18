@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to Aion are documented here. The format is based on
+All notable changes to Kustos are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project follows
 [Semantic Versioning](https://semver.org/).
 
@@ -8,21 +8,22 @@ All notable changes to Aion are documented here. The format is based on
 
 ### Added
 
-- Time Machine-style incremental snapshots of the home folder: `rsync`
-  hard-link trees under `<backup>/snapshots/<timestamp>/`, with a `latest`
-  symlink and a `meta.json` per snapshot.
-- Kirigami GUI (960x640, `GlobalDrawer`, overlay menus) with a snapshot
-  timeline, a file browser inside any snapshot, and restore of single items or
-  whole folders.
-- Restore policies: replace, keep the existing file, keep both.
-- Retention policy: hourly window, one snapshot per day, one snapshot per week;
-  the newest snapshot is never removed.
-- Settings dialog with sources, excludes, backup folder, language (English and
-  Russian, switched at runtime), notifications, ACL/xattr preservation,
-  schedule and retention.
-- Automatic backups through a systemd user timer installed from the settings.
-- CLI: `--backup`, `--list`, `--prune`, `--restore`, `--print-config`,
-  `--help`, `--version`.
-- Desktop notifications when a backup or a restore finishes, and a log per
-  backup in `~/.cache/aion/logs/`.
-- Opt-in tests for retention, configuration and snapshot scanning.
+- *What to Back Up* dialog: edit the included folders/files and the excluded
+  paths right before a backup; exclusions may be nested inside included
+  folders.
+- Encrypted, compressed and deduplicated snapshots: foreign formats (restic v2
+  repository written by `rustic`), repository key shown in About.
+- File browser inside a snapshot, per-item restore with overwrite / skip /
+  keep-both policies, and a destination folder.
+- Automatic backups through a systemd user timer, runtime English/Russian
+  switch, `notify-send` notifications.
+
+### Changed
+
+- Rewritten in Rust (`qmetaobject` + QML/Kirigami) instead of C++/CMake; the
+  rsync hard-link engine is replaced by a restic-compatible repository.
+- Renamed from Aion to Kustos (the old name collides with a game).
+
+## [0.1.0]
+
+- First GUI prototype: rsync hard-link snapshots, timeline, restore, settings.

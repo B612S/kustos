@@ -7,9 +7,8 @@ import QtQuick.Layouts
 import QtQuick.Dialogs
 import org.kde.kirigami as Kirigami
 
-// Restore wizard: where to put the selected items and what to do about
-// existing files. "Original location" restores into "/", so items land exactly
-// where they were; a folder destination produces the same tree below it.
+// Restore wizard: destination and conflict policy, then the per-item progress
+// reported by the Rust restore job.
 Dialog {
     id: dialog
 
@@ -29,7 +28,8 @@ Dialog {
     property var itemPaths: []
     property string destination: ""
     property string policy: "overwrite"
-    readonly property bool running: Restore.running
+    property var status: ({ running: false, percent: 0, state: "", error: "", current: "", added: 0 })
+    readonly property bool running: status.running
 
     function urlToPath(url) {
         return decodeURIComponent(url.toString().replace(/^file:\/\//, ""));
@@ -42,6 +42,7 @@ Dialog {
         itemPaths = paths;
         destination = "";
         policy = "overwrite";
+        status = ({ running: false, percent: 0, state: "", error: "", current: "", added: 0 });
         open();
     }
 
@@ -66,7 +67,6 @@ Dialog {
             color: Kirigami.Theme.textColor
         }
 
-        // A short preview of what is about to be restored.
         ColumnLayout {
             Layout.fillWidth: true
             spacing: 2
@@ -75,7 +75,7 @@ Dialog {
                 model: Math.min(dialog.itemPaths.length, 6)
                 delegate: Label {
                     Layout.fillWidth: true
-                    text: "• " + String(dialog.itemPaths[index]).replace(Store.homeRoot, "~")
+                    text: "• " + String(dialog.itemPaths[index]).replace(Browser.homeRoot(), "~")
                     font.pixelSize: 13
                     elide: Text.ElideMiddle
                     opacity: 0.85
@@ -115,7 +115,6 @@ Dialog {
                 spacing: 4
 
                 ComboBox {
-                    id: destinationCombo
                     Layout.fillWidth: true
                     font.pixelSize: 14
                     model: [
@@ -187,11 +186,11 @@ Dialog {
                 Layout.fillWidth: true
                 from: 0
                 to: 100
-                value: Restore.progress
+                value: dialog.status.percent
             }
             Label {
                 Layout.fillWidth: true
-                text: Restore.currentItem.replace(Store.homeRoot, "~")
+                text: String(dialog.status.current).replace(Browser.homeRoot(), "~")
                 font.pixelSize: 12
                 elide: Text.ElideMiddle
                 opacity: 0.7
@@ -201,9 +200,9 @@ Dialog {
 
         Label {
             Layout.fillWidth: true
-            visible: Restore.errorMessage !== ""
+            visible: dialog.status.error !== ""
             wrapMode: Text.WordWrap
-            text: Restore.errorMessage
+            text: dialog.status.error
             color: Kirigami.Theme.negativeTextColor
             font.pixelSize: 12
         }
@@ -223,9 +222,23 @@ Dialog {
                 text: qsTr("action_restore")
                 icon.name: "document-revert"
                 enabled: !dialog.running && dialog.itemPaths.length > 0
-                onClicked: Restore.start(dialog.snapshotId, dialog.itemPaths,
-                                         dialog.destination, dialog.policy)
+                onClicked: {
+                    Restore.start(dialog.snapshotId, dialog.itemPaths.join("\n"),
+                                  dialog.destination, dialog.policy);
+                    dialog.status = Restore.poll();
+                }
             }
+        }
+    }
+
+    Timer {
+        interval: 200
+        repeat: true
+        running: dialog.status.running
+        onTriggered: {
+            dialog.status = Restore.poll();
+            if (!dialog.status.running && dialog.status.state === "done")
+                dialog.close();
         }
     }
 
@@ -233,13 +246,5 @@ Dialog {
         id: folderDialog
         title: qsTr("restore_choose_folder")
         onAccepted: dialog.destination = dialog.urlToPath(selectedFolder)
-    }
-
-    Connections {
-        target: Restore
-        function onFinished(ok, restoredCount) {
-            if (ok)
-                dialog.close();
-        }
     }
 }

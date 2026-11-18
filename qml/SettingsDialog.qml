@@ -8,8 +8,7 @@ import QtQuick.Dialogs
 import org.kde.kirigami as Kirigami
 
 // Settings, styled like Luma's SettingsDialog: an 800x600 overlay card with a
-// category list on the left, a scrolling form on the right, 14 px labels and a
-// fixed 200 px control column.
+// category list on the left and a scrolling form on the right.
 Dialog {
     id: settingsDialog
 
@@ -25,12 +24,23 @@ Dialog {
     x: Math.max(12, (Overlay.overlay.width - width) / 2)
     y: Math.max(12, (Overlay.overlay.height - height) / 2)
 
-    readonly property int controlWidth: 200
+    readonly property int controlWidth: 240
     readonly property color selectionBackgroundColor: Qt.rgba(Kirigami.Theme.highlightColor.r,
                                                               Kirigami.Theme.highlightColor.g,
                                                               Kirigami.Theme.highlightColor.b, 0.35)
     property string currentCategory: "general"
+    property var sources: []
+    property var excludes: []
+    property var scheduler: ({ state: "absent", error: "" })
     property string pruneMessage: ""
+
+    signal scopeRequested()
+
+    readonly property var categories: [
+        { key: "general", text: qsTr("settings_general") },
+        { key: "schedule", text: qsTr("settings_schedule") },
+        { key: "retention", text: qsTr("settings_retention") }
+    ]
 
     readonly property var intervalModel: {
         const values = [15, 30, 60, 120, 180, 360, 720, 1440];
@@ -41,43 +51,10 @@ Dialog {
         }));
     }
 
-    readonly property var categories: [
-        { key: "general", text: qsTr("settings_general") },
-        { key: "sources", text: qsTr("settings_sources") },
-        { key: "schedule", text: qsTr("settings_schedule") },
-        { key: "retention", text: qsTr("settings_retention") }
-    ]
-
-    function addSource(path) {
-        if (path === "")
-            return;
-        const list = Config.sources.slice();
-        if (list.indexOf(path) === -1) {
-            list.push(path);
-            Config.sources = list;
-        }
-    }
-
-    function removeSource(index) {
-        const list = Config.sources.slice();
-        list.splice(index, 1);
-        Config.sources = list;
-    }
-
-    function addExclude(path) {
-        if (path === "")
-            return;
-        const list = Config.excludes.slice();
-        if (list.indexOf(path) === -1) {
-            list.push(path);
-            Config.excludes = list;
-        }
-    }
-
-    function removeExclude(index) {
-        const list = Config.excludes.slice();
-        list.splice(index, 1);
-        Config.excludes = list;
+    function refreshLists() {
+        sources = Config.sources();
+        excludes = Config.excludes();
+        scheduler = Scheduler.poll();
     }
 
     function urlToPath(url) {
@@ -85,12 +62,21 @@ Dialog {
     }
 
     function timerStateText() {
-        switch (Scheduler.timerState) {
+        switch (settingsDialog.scheduler.state) {
         case "active": return qsTr("schedule_state_active");
         case "inactive": return qsTr("schedule_state_inactive");
         case "absent": return qsTr("schedule_state_absent");
         }
         return qsTr("schedule_state_unknown");
+    }
+
+    onOpened: refreshLists()
+
+    Timer {
+        interval: 1200
+        repeat: true
+        running: settingsDialog.visible
+        onTriggered: settingsDialog.scheduler = Scheduler.poll()
     }
 
     background: Rectangle {
@@ -106,7 +92,6 @@ Dialog {
     contentItem: RowLayout {
         spacing: 0
 
-        // ---- Categories ----
         Rectangle {
             Layout.preferredWidth: 220
             Layout.fillHeight: true
@@ -183,7 +168,6 @@ Dialog {
                            Kirigami.Theme.textColor.b, 0.15)
         }
 
-        // ---- Content ----
         ScrollView {
             id: scroll
             Layout.fillWidth: true
@@ -225,7 +209,7 @@ Dialog {
                         Layout.fillWidth: true
 
                         Label {
-                            text: qsTr("settings_target")
+                            text: qsTr("settings_repo")
                             font.pixelSize: 14
                             Layout.fillWidth: true
                             Layout.alignment: Qt.AlignLeft | Qt.AlignVCenter
@@ -240,15 +224,15 @@ Dialog {
                             TextField {
                                 Layout.fillWidth: true
                                 font.pixelSize: 13
-                                text: Config.targetDir
+                                text: Config.repo
                                 onEditingFinished: {
-                                    if (text !== Config.targetDir)
-                                        Config.targetDir = text;
+                                    if (text !== Config.repo)
+                                        Config.setRepo(text);
                                 }
                             }
                             ToolButton {
                                 icon.name: "folder-open"
-                                onClicked: targetDialog.open()
+                                onClicked: repoDialog.open()
                                 ToolTip.text: qsTr("settings_choose_folder")
                                 ToolTip.visible: hovered
                             }
@@ -265,11 +249,8 @@ Dialog {
                             Layout.preferredWidth: settingsDialog.controlWidth
                             Layout.preferredHeight: 40
                             ComboBox {
-                                id: langCombo
                                 anchors.fill: parent
                                 font.pixelSize: 14
-                                // "System" is translated; language names are
-                                // native endonyms.
                                 model: [
                                     { value: "auto", text: qsTr("language_auto") },
                                     { value: "en", text: "English" },
@@ -278,14 +259,10 @@ Dialog {
                                 textRole: "text"
                                 valueRole: "value"
                                 currentIndex: {
-                                    let idx = model.findIndex(item => item.value === Config.language);
+                                    const idx = model.findIndex(item => item.value === Config.language);
                                     return idx !== -1 ? idx : 0;
                                 }
-                                onActivated: (index) => {
-                                    let newLang = model[index].value;
-                                    if (Config.language !== newLang)
-                                        Config.language = newLang;
-                                }
+                                onActivated: (index) => Config.setLanguage(model[index].value)
                             }
                         }
 
@@ -303,61 +280,7 @@ Dialog {
                                 anchors.right: parent.right
                                 anchors.verticalCenter: parent.verticalCenter
                                 checked: Config.notifications
-                                onToggled: Config.notifications = checked
-                            }
-                        }
-
-                        Label {
-                            text: qsTr("settings_single_instance")
-                            font.pixelSize: 14
-                            Layout.fillWidth: true
-                            Layout.alignment: Qt.AlignLeft | Qt.AlignVCenter
-                            color: Kirigami.Theme.textColor
-                        }
-                        Item {
-                            Layout.preferredWidth: settingsDialog.controlWidth
-                            Layout.preferredHeight: 40
-                            Switch {
-                                anchors.right: parent.right
-                                anchors.verticalCenter: parent.verticalCenter
-                                checked: Config.singleInstance
-                                onToggled: Config.singleInstance = checked
-                            }
-                        }
-
-                        Label {
-                            text: qsTr("settings_preserve_acl")
-                            font.pixelSize: 14
-                            Layout.fillWidth: true
-                            Layout.alignment: Qt.AlignLeft | Qt.AlignVCenter
-                            color: Kirigami.Theme.textColor
-                        }
-                        Item {
-                            Layout.preferredWidth: settingsDialog.controlWidth
-                            Layout.preferredHeight: 40
-                            Switch {
-                                anchors.right: parent.right
-                                anchors.verticalCenter: parent.verticalCenter
-                                checked: Config.preserveAcl
-                                onToggled: Config.preserveAcl = checked
-                            }
-                        }
-
-                        Label {
-                            text: qsTr("settings_preserve_xattr")
-                            font.pixelSize: 14
-                            Layout.fillWidth: true
-                            Layout.alignment: Qt.AlignLeft | Qt.AlignVCenter
-                            color: Kirigami.Theme.textColor
-                        }
-                        Item {
-                            Layout.preferredWidth: settingsDialog.controlWidth
-                            Layout.preferredHeight: 40
-                            Switch {
-                                anchors.right: parent.right
-                                anchors.verticalCenter: parent.verticalCenter
-                                checked: Config.preserveXattr
-                                onToggled: Config.preserveXattr = checked
+                                onToggled: Config.setNotifications(checked)
                             }
                         }
                     }
@@ -366,137 +289,23 @@ Dialog {
                         Layout.fillWidth: true
                         spacing: 8
                         Button {
+                            text: qsTr("settings_scope")
+                            icon.name: "folder-saved-search"
+                            onClicked: settingsDialog.scopeRequested()
+                        }
+                        Button {
                             text: qsTr("settings_open_config")
                             icon.name: "text-plain"
-                            onClicked: App.openPath(App.configPath)
+                            onClicked: App.openPath(App.configPath())
                         }
                         Item { Layout.fillWidth: true }
                         Button {
                             text: qsTr("settings_reset")
                             icon.name: "edit-undo"
                             onClicked: {
-                                Config.resetToDefaults();
-                                settingsDialog.currentCategory = "general";
+                                Config.reset();
+                                settingsDialog.refreshLists();
                             }
-                        }
-                    }
-                }
-
-                // ============ Sources ============
-                ColumnLayout {
-                    visible: settingsDialog.currentCategory === "sources"
-                    Layout.fillWidth: true
-                    spacing: 16
-
-                    Label {
-                        text: qsTr("settings_sources")
-                        font.pixelSize: 20
-                        font.weight: Font.Bold
-                        color: Kirigami.Theme.textColor
-                    }
-                    Rectangle {
-                        Layout.fillWidth: true
-                        height: 1
-                        color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g,
-                                       Kirigami.Theme.textColor.b, 0.2)
-                    }
-                    Label {
-                        Layout.fillWidth: true
-                        text: qsTr("settings_sources_hint")
-                        font.pixelSize: 12
-                        wrapMode: Text.WordWrap
-                        opacity: 0.7
-                        color: Kirigami.Theme.textColor
-                    }
-
-                    Repeater {
-                        model: Config.sources
-
-                        delegate: RowLayout {
-                            Layout.fillWidth: true
-                            spacing: 6
-
-                            Label {
-                                Layout.fillWidth: true
-                                text: String(modelData).replace(Config.homePath, "~")
-                                font.pixelSize: 13
-                                elide: Text.ElideMiddle
-                                color: Kirigami.Theme.textColor
-                            }
-                            ToolButton {
-                                icon.name: "list-remove"
-                                onClicked: settingsDialog.removeSource(index)
-                                ToolTip.text: qsTr("settings_remove")
-                                ToolTip.visible: hovered
-                            }
-                        }
-                    }
-
-                    RowLayout {
-                        spacing: 8
-                        Button {
-                            text: qsTr("settings_add_folder")
-                            icon.name: "folder-new"
-                            onClicked: sourceFolderDialog.open()
-                        }
-                        Button {
-                            text: qsTr("settings_add_file")
-                            icon.name: "document-new"
-                            onClicked: sourceFileDialog.open()
-                        }
-                    }
-
-                    Label {
-                        text: qsTr("settings_excludes")
-                        font.pixelSize: 20
-                        font.weight: Font.Bold
-                        Layout.topMargin: 12
-                        color: Kirigami.Theme.textColor
-                    }
-                    Rectangle {
-                        Layout.fillWidth: true
-                        height: 1
-                        color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g,
-                                       Kirigami.Theme.textColor.b, 0.2)
-                    }
-                    Label {
-                        Layout.fillWidth: true
-                        text: qsTr("settings_excludes_hint")
-                        font.pixelSize: 12
-                        wrapMode: Text.WordWrap
-                        opacity: 0.7
-                        color: Kirigami.Theme.textColor
-                    }
-
-                    Repeater {
-                        model: Config.excludes
-
-                        delegate: RowLayout {
-                            Layout.fillWidth: true
-                            spacing: 6
-
-                            Label {
-                                Layout.fillWidth: true
-                                text: String(modelData).replace(Config.homePath, "~")
-                                font.pixelSize: 13
-                                elide: Text.ElideMiddle
-                                color: Kirigami.Theme.textColor
-                            }
-                            ToolButton {
-                                icon.name: "list-remove"
-                                onClicked: settingsDialog.removeExclude(index)
-                                ToolTip.text: qsTr("settings_remove")
-                                ToolTip.visible: hovered
-                            }
-                        }
-                    }
-
-                    RowLayout {
-                        spacing: 8
-                        Button {
-                            text: qsTr("settings_add_excluded_folder")
-                            icon.name: "folder-new"
-                            onClicked: excludeFolderDialog.open()
                         }
                     }
                 }
@@ -541,7 +350,7 @@ Dialog {
                                 anchors.right: parent.right
                                 anchors.verticalCenter: parent.verticalCenter
                                 checked: Config.scheduleEnabled
-                                onToggled: Config.scheduleEnabled = checked
+                                onToggled: Config.setScheduleEnabled(checked)
                             }
                         }
 
@@ -565,7 +374,7 @@ Dialog {
                                     const idx = model.findIndex(entry => entry.minutes === Config.scheduleMinutes);
                                     return idx !== -1 ? idx : 2;
                                 }
-                                onActivated: (index) => { Config.scheduleMinutes = model[index].minutes; }
+                                onActivated: (index) => Config.setScheduleMinutes(model[index].minutes)
                             }
                         }
                     }
@@ -580,8 +389,10 @@ Dialog {
                     }
                     Label {
                         Layout.fillWidth: true
-                        visible: Scheduler.lastError !== ""
-                        text: Scheduler.lastError
+                        visible: settingsDialog.scheduler.error !== undefined
+                                 && settingsDialog.scheduler.error !== ""
+                        text: settingsDialog.scheduler.error !== undefined
+                              ? settingsDialog.scheduler.error : ""
                         font.pixelSize: 12
                         wrapMode: Text.WordWrap
                         color: Kirigami.Theme.negativeTextColor
@@ -636,8 +447,8 @@ Dialog {
                                 anchors.verticalCenter: parent.verticalCenter
                                 from: 1
                                 to: 720
-                                value: Config.keepHourlyHours
-                                onValueModified: Config.keepHourlyHours = value
+                                value: Config.keepHourly
+                                onValueModified: Config.setKeepHourly(value)
                             }
                         }
 
@@ -656,8 +467,8 @@ Dialog {
                                 anchors.verticalCenter: parent.verticalCenter
                                 from: 0
                                 to: 3650
-                                value: Config.keepDailyDays
-                                onValueModified: Config.keepDailyDays = value
+                                value: Config.keepDaily
+                                onValueModified: Config.setKeepDaily(value)
                             }
                         }
 
@@ -676,8 +487,8 @@ Dialog {
                                 anchors.verticalCenter: parent.verticalCenter
                                 from: 0
                                 to: 520
-                                value: Config.keepWeeklyWeeks
-                                onValueModified: Config.keepWeeklyWeeks = value
+                                value: Config.keepWeekly
+                                onValueModified: Config.setKeepWeekly(value)
                             }
                         }
                     }
@@ -686,9 +497,9 @@ Dialog {
                         text: qsTr("settings_prune_now")
                         icon.name: "edit-clear-history"
                         onClicked: {
-                            const removed = Store.prune();
-                            settingsDialog.pruneMessage = removed.length > 0
-                                ? qsTr("settings_pruned").arg(removed.length)
+                            const ok = Store.pruneNow() > 0;
+                            settingsDialog.pruneMessage = ok
+                                ? qsTr("settings_pruned_now")
                                 : qsTr("settings_nothing_to_prune");
                         }
                     }
@@ -707,24 +518,33 @@ Dialog {
     }
 
     FolderDialog {
-        id: targetDialog
+        id: repoDialog
         title: qsTr("settings_choose_folder")
-        onAccepted: Config.targetDir = settingsDialog.urlToPath(selectedFolder)
+        onAccepted: Config.setRepo(settingsDialog.urlToPath(selectedFolder))
     }
     FolderDialog {
         id: sourceFolderDialog
         title: qsTr("settings_add_folder")
-        onAccepted: settingsDialog.addSource(settingsDialog.urlToPath(selectedFolder))
+        onAccepted: {
+            Config.addSource(settingsDialog.urlToPath(selectedFolder));
+            settingsDialog.refreshLists();
+        }
     }
     FileDialog {
         id: sourceFileDialog
         title: qsTr("settings_add_file")
         fileMode: FileDialog.OpenFile
-        onAccepted: settingsDialog.addSource(settingsDialog.urlToPath(selectedFile))
+        onAccepted: {
+            Config.addSource(settingsDialog.urlToPath(selectedFile));
+            settingsDialog.refreshLists();
+        }
     }
     FolderDialog {
         id: excludeFolderDialog
         title: qsTr("settings_add_excluded_folder")
-        onAccepted: settingsDialog.addExclude(settingsDialog.urlToPath(selectedFolder))
+        onAccepted: {
+            Config.addExclude(settingsDialog.urlToPath(selectedFolder));
+            settingsDialog.refreshLists();
+        }
     }
 }
