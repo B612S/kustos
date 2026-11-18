@@ -1,0 +1,16 @@
+# Build trees
+build/
+build-*/
+dist/
+pkg/
+AppDir/
+
+# Tooling artifacts
+compile_commands.json
+.cache/
+*.qm
+*.user
+
+# Editor and OS noise
+*.swp
+.DS_Store
