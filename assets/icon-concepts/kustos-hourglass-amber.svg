@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- SPDX-FileCopyrightText: 2026 B612S <sem.alimov@inbox.ru> -->
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="sheen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity=".18"/>
+      <stop offset=".55" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect x="4" y="5.5" width="56" height="56" rx="13" fill="#000000" opacity=".22"/>
+  <rect x="4" y="4" width="56" height="56" rx="13" fill="#d0781f"/>
+  <rect x="4" y="4" width="56" height="56" rx="13" fill="url(#sheen)"/>
+
+  <rect x="20" y="12" width="24" height="4.5" rx="2.25" fill="#ffffff"/>
+  <rect x="20" y="47.5" width="24" height="4.5" rx="2.25" fill="#ffffff"/>
+  <path d="M22 16.5 H42 L34.8 30.2 C34.3 31.2 34.3 32.8 34.8 33.8 L42 47.5 H22 L29.2 33.8 C29.7 32.8 29.7 31.2 29.2 30.2 Z"
+        fill="#ffffff"/>
+</svg>

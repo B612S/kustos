@@ -18,6 +18,7 @@ Dialog {
     title: qsTr("restore_title")
     padding: 18
     closePolicy: Popup.CloseOnEscape
+    z: 2000
 
     width: Math.min(640, (Overlay.overlay ? Overlay.overlay.width : 800) - 40)
     x: Math.max(12, (Overlay.overlay.width - width) / 2)
@@ -49,7 +50,7 @@ Dialog {
     background: Rectangle {
         color: Qt.rgba(Kirigami.Theme.backgroundColor.r,
                        Kirigami.Theme.backgroundColor.g,
-                       Kirigami.Theme.backgroundColor.b, 0.98)
+                       Kirigami.Theme.backgroundColor.b, 1.0)
         radius: 8
         border.width: 1
         border.color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g,

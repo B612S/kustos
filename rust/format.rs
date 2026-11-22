@@ -37,7 +37,10 @@ pub fn speed(bytes_done: u64, seconds: f64) -> String {
     if seconds <= 0.5 {
         return String::new();
     }
-    format!("{}/s", bytes(bytes_done / seconds.max(0.1) as u64))
+    // Convert the rate to an integer only after the division: casting 0.1 to
+    // u64 first would round it down to zero.
+    let rate = (bytes_done as f64 / seconds.max(0.1)) as u64;
+    format!("{}/s", bytes(rate))
 }
 
 #[cfg(test)]
@@ -51,6 +54,14 @@ mod tests {
         assert_eq!(bytes(1024), "1.00 KB");
         assert_eq!(bytes(1536), "1.50 KB");
         assert_eq!(bytes(10 * 1024 * 1024), "10.0 MB");
+    }
+
+    #[test]
+    fn speed_handles_short_elapsed_times() {
+        assert_eq!(speed(0, 0.6), "0 B/s");
+        assert_eq!(speed(1, 0.6), "1 B/s");
+        assert_eq!(speed(1024, 0.6), "1.67 KB/s");
+        assert_eq!(speed(1024, 0.4), "");
     }
 
     #[test]

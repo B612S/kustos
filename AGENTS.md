@@ -19,7 +19,8 @@ cargo test                  # unit tests, no display needed
 - Qt is found through `qmake`; `.cargo/config.toml` pins `QMAKE=/usr/bin/qmake6`
   because the machine also has Qt 5. Never remove that line.
 - `rust/bridge.cpp` is compiled by `build.rs` with `pkg-config` (Qt6Core, Gui,
-  Qml, Quick). It exists only for the `QTranslator` and the clipboard.
+  Qml, Quick). It installs the `QTranslator`, uses the Qt clipboard and keeps
+  the timestamp of the last user event for the inactivity lock.
 - Headless UI check (offscreen, no display):
 
   ```bash
@@ -28,11 +29,20 @@ cargo test                  # unit tests, no display needed
   ./target/debug/kustos
   ```
 
-  Renders the window to the file and exits; `KUSTOS_CAPTURE_DIALOG=backup`,
-  `settings`, `about` or `restore` opens that dialog first. Development-only.
+  Renders the window to the file and exits; `KUSTOS_CAPTURE_DIALOG=rules` (or
+  the legacy `backup`), `settings`, `about`, `password` (legacy `key`) or
+  `restore` opens that dialog first. Set `KUSTOS_PASSWORD=…` together with
+  `KUSTOS_CAPTURE` to capture a real, unlocked repository (development-only).
+  `KUSTOS_CAPTURE_ACTION=backup` starts a backup through the normal GUI path
+  (credential resolution included) before the screenshot; this is how the
+  passwordless backup flow is tested headlessly.
 - QML warnings are not reliably printed by the Qt build in use. When a binding
   silently fails, add `App.trace("…")` calls (they append to
   `~/.cache/kustos/kustos.log`) or check `rustic`/repository errors in the log.
+- Tests must never touch the real `~/.config/kustos/kustos.json`: under
+  `cfg(test)`, `paths::config_dir()`/`cache_dir()` redirect XDG to a
+  process-specific temporary tree. `cargo test` runs inside `makepkg -si`;
+  writing the real config from a test wipes the user's password key bindings.
 
 ## Architecture map
 
@@ -44,14 +54,30 @@ cargo test                  # unit tests, no display needed
   publish `Arc<Mutex<JobStatus>>`; QML polls with a `Timer` and a JS property.
 - `rust/rustic.rs` — process wrapper and JSON parsing (`backup --json-progress`,
   `snapshots --json`, `ls --json --long`, `restore --json-progress`, `forget`).
-- `rust/config.rs` — JSON settings (`~/.config/kustos/kustos.json`), defaults,
-  password generation; `rust/paths.rs` — XDG paths.
-- `rust/schedule.rs` — systemd user timer; `rust/notify.rs` — `notify-send`;
+- `rust/config.rs` — JSON settings (`~/.config/kustos/kustos.json`), the
+  `BackupRule` list (sources, excludes, per-rule schedule, the rustic key ID),
+  the inactivity-lock timeout, the password mode (`per_rule` / `common`) and
+  the common key ID, legacy single-scope migration and defaults;
+  `rust/paths.rs` — XDG paths.
+- `rust/vault.rs` — in-memory per-rule **viewing** passwords (each one is a
+  rustic key), the lock generation QML polls, and the inactivity timeout.
+- `rust/joblock.rs` — advisory `flock` that serializes backup jobs across
+  rules, GUI and CLI.
+- `rust/schedule.rs` — one systemd user **service and timer** per scheduled
+  rule (`kustos-backup-<id>.service` + `.timer`) and the per-rule credential
+  (`systemd-creds` or a 0600 fallback) that lets the service — and the GUI's
+  backup job — unlock the repository without a prompt; `rust/notify.rs` — `notify-send`;
   `rust/i18n.rs` — translator installation through the bridge.
 - `qml/` — flat directory. `Main.qml` owns the window, the polling timers and
   the dialogs; `TimelinePanel`, `SnapshotBrowser` are views exchanging plain JS
-  arrays with Rust (`Store.snapshots()`, `Browser.entries()`); `BackupDialog`
-  edits the scope; `SettingsDialog`, `RestoreDialog`, `AboutDialog` are cards;
+  arrays with Rust (`Store.snapshots()`, `Browser.entries()`). The main window
+  is three columns: `RulesPanel` (rules + context menu), `TimelinePanel`
+  (snapshots of the selected rule) and `SnapshotBrowser` (files). `Main.qml`
+  owns the rule filtering, selection and the synthetic "Other Backups" group
+  for untagged snapshots. `BackupDialog` is the detailed rule editor;
+  `UnlockDialog` is the password dialog (per-rule unlock/create/change and the
+  common-password variants); `SettingsDialog` has the General, Security and
+  Retention pages; `RestoreDialog`, `AboutDialog` are cards;
   `KustosMenu`/`KustosMenuButton` are the Luma-style context menus.
 
 ## QML rules (learned the hard way)
@@ -73,6 +99,9 @@ cargo test                  # unit tests, no display needed
 - Properties use the field name as-is (`repo`, `scheduleEnabled`); notify
   signals are `<field>_changed` and are emitted explicitly after changing the
   field.
+- A QML `Connections` handler for a qmetaobject signal keeps the underscore:
+  `rules_changed` is handled by `function onRules_changed()`, **not**
+  `onRulesChanged`; the camelCase spelling silently never fires.
 - Data reaches QML as `QVariantList` of `QVariantMap`; QML treats it as an
   array of objects (`modelData.name`). Models are not used, so every list is
   pulled by an invokable and cached in a JS property.
@@ -81,19 +110,66 @@ cargo test                  # unit tests, no display needed
 
 ## Snapshot engine rules
 
-- Tag every backup `kustos`; `snapshots` is filtered by that tag.
-- Exclusions are passed as `--glob '!<absolute path>'`; without `!` rustic
-  treats a pattern as an *include* and backs up almost nothing.
+- Tag every backup `kustos`; `snapshots` is filtered by that tag. A backup made
+  by a rule also gets `kustos-rule:<id>` so the UI can resolve the rule name.
+- A backup runs once per enabled rule (or once for an explicit
+  `--backup --rule <id>`), so one run can create several snapshots.
+- Every backup job takes an advisory `flock` on
+  `~/.cache/kustos/backup.lock` (`rust/joblock.rs`) before touching `rustic`,
+  so two timers firing at once wait instead of failing on the repository lock.
+- Exclusions are passed as `--glob '!<pattern>'`; without `!` rustic treats a
+  pattern as an *include* and backs up almost nothing. `~/` is expanded and a
+  user-supplied leading `!` is stripped before the caller adds it.
 - Snapshot paths are relative to the snapshot root (`home/<user>/...`).
 - Restore: `rustic restore <id>:<path> <staging>` then `cp -a` into the target;
   policies are overwrite / skip / keep_both.
+- "Save Copies…" reuses the restore job with `mode=extract`: the staged item is
+  copied flat into the user-chosen folder (`<folder>/<name>`) and an existing
+  target is never overwritten — it gets a `(restored <timestamp>)` sibling.
 - After a successful backup, `forget --keep-hourly/daily/weekly --prune` is
   applied. Never remove the only snapshot.
-- The repository key lives in memory only (`rust/vault.rs`): generated once at
-  repository creation, shown in the one-time dialog, never written to disk.
-  Every start asks for it; the CLI reads `KUSTOS_PASSWORD` /
-  `KUSTOS_PASSWORD_FILE`. Do not add a key file back without an explicit
-  request — that was a deliberate security decision.
+- Passwords are per rule and live in memory only (`rust/vault.rs`). Each rule
+  password is a separate `rustic key` of the same repository; `rule.key_id`
+  records which key belongs to which rule. There is no startup prompt: a rule
+  asks for its viewing password when it is opened. A backup can initialize a
+  new repository with a generated key instead, saving it as a credential. All
+  keys unlock the same master key, so this is per-rule access control in the
+  UI, not per-rule encryption; do not claim otherwise.
+  Passwords may repeat. `rustic` cannot tell which key a duplicate password
+  opened, so the application verifies only that the password opens the
+  repository; it does not enforce a password-to-rule mapping. `rule.key_id` is
+  for management (binding, removal), not authentication. Any valid repository
+  password unlocks a rule, and all keys open the same data.
+- **Common password mode.** `Config.password_mode` (`per_rule` / `common`) and
+  `Config.common_key_id` are the switch. In common mode `Store.setCommonPassword`
+  adds one key, stores it in every rule's credential and caches it for every
+  rule; `Config.bindCommonKey` points all rules at it and stores the canonical
+  ID. A common unlock caches the password for every rule and returns
+  `bind_all`; QML then calls `Config.bindCommonKey`. Changing the common
+  password adds a new key and best-effort removes the old common key. In
+  per-rule mode none of this applies; each unlock affects one rule.
+- **Starting a backup never needs the vault.** `BackupObject` resolves the
+  key from the vault, a saved credential (`schedule::load_credential`) or a
+  generated key for a repository that does not exist yet (it initializes the
+  repository and saves the key as a credential). Do not put that key into the
+  vault: a backup must not unlock the timeline. When a backup finishes while
+  its rule is locked, QML must not select the new snapshot (the browser would
+  try to read the repository without a password); show the *unlock to view*
+  toast instead. Viewing still needs the per-rule password.
+- Inactivity re-lock is driven by the C++ event filter in `rust/bridge.cpp`
+  (`kustos_last_activity_ms`) and the guard thread in `rust/activity.rs`; QML
+  polls `Store.lockGeneration()` and hides the snapshots when it changes.
+- Backups without a prompt need a credential on disk. `rust/schedule.rs`
+  encrypts the rule or generated backup key with `systemd-creds --user` and the
+  unit loads it with `LoadCredentialEncrypted=`; without `systemd-creds` it
+  falls back to a 0600 file. The GUI also decrypts this credential to start a
+  backup while the viewing passwords are locked. This is the explicit
+  exception to "never write the key to disk" — it exists to make passwordless
+  GUI and systemd backups possible. The CLI reads `KUSTOS_PASSWORD`,
+  `KUSTOS_PASSWORD_FILE` or `$CREDENTIALS_DIRECTORY/kustos-password`.
+- `rustic key add` can leave the newly created key ambiguous when passwords
+  collide; `rust/rustic.rs` identifies it by the difference of the key lists
+  before and after. Duplicate passwords are allowed on purpose.
 
 ## Localization
 
@@ -114,4 +190,7 @@ cargo test                  # unit tests, no display needed
   Arch install path. It runs `cargo build --release --locked` and `cargo test`.
 - Keep `CHANGELOG.md` current under `## [Unreleased]`.
 - Deleting a snapshot is the only destructive user-data operation; it stays
-  behind a confirmation dialog.
+  behind a confirmation dialog. Deleting a rule removes its configuration,
+  credential and (best effort, when another key can keep the repository
+  accessible) its rustic key; its snapshots stay in the repository and move to
+  the synthetic *Other Backups* group.

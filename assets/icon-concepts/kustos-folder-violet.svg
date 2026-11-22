@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- SPDX-FileCopyrightText: 2026 B612S <sem.alimov@inbox.ru> -->
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="sheen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity=".14"/>
+      <stop offset=".5" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <g opacity=".22" transform="translate(0 1.5)" fill="#000000">
+    <path d="M6 18 V13 C6 10.8 7.8 9 10 9 H22 L26 13 H54 C56.2 13 58 14.8 58 17 V18 Z"/>
+    <path d="M6 16 H58 V48 C58 51.3 55.3 54 52 54 H12 C8.7 54 6 51.3 6 48 Z"/>
+  </g>
+  <!-- Back tab. -->
+  <path d="M6 18 V13 C6 10.8 7.8 9 10 9 H22 L26 13 H54 C56.2 13 58 14.8 58 17 V18 Z"
+        fill="#6f3fa0"/>
+  <!-- Front body. -->
+  <path d="M6 16 H58 V48 C58 51.3 55.3 54 52 54 H12 C8.7 54 6 51.3 6 48 Z"
+        fill="#9b63d3"/>
+  <rect x="8" y="17" width="48" height="3" rx="1.5" fill="#ffffff" opacity=".16"/>
+
+  <!-- Rewind ring on the folder body. -->
+  <path d="M39.25 24.91 A10.5 10.5 0 1 1 28.75 24.91"
+        fill="none" stroke="#ffffff" stroke-width="4.2" stroke-linecap="round"/>
+  <path d="M39.25 21.7 L39.25 28.1 L34.2 24.9 Z" fill="#ffffff"/>
+</svg>

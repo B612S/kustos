@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- SPDX-FileCopyrightText: 2026 B612S <sem.alimov@inbox.ru> -->
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="sheen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity=".18"/>
+      <stop offset=".55" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect x="4" y="5.5" width="56" height="56" rx="13" fill="#000000" opacity=".22"/>
+  <rect x="4" y="4" width="56" height="56" rx="13" fill="#4ba64f"/>
+  <rect x="4" y="4" width="56" height="56" rx="13" fill="url(#sheen)"/>
+
+  <path d="M32 8 L50 14.5 V29 C50 40.5 43 49 32 55 C21 49 14 40.5 14 29 V14.5 Z"
+        fill="#ffffff"/>
+  <!-- Clock face inset in the shield. -->
+  <circle cx="32" cy="30.5" r="10.5" fill="#2f7f3a"/>
+  <path d="M32 30.5 V23.5" fill="none" stroke="#ffffff" stroke-width="3.4" stroke-linecap="round"/>
+  <path d="M32 30.5 L38 34" fill="none" stroke="#ffffff" stroke-width="3.4" stroke-linecap="round"/>
+  <circle cx="32" cy="30.5" r="2.2" fill="#ffffff"/>
+</svg>

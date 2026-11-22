@@ -60,7 +60,9 @@ Popup {
                        Kirigami.Theme.backgroundColor.g,
                        Kirigami.Theme.backgroundColor.b, 1.0)
         radius: 8
-        border.color: "transparent"
+        border.width: 1
+        border.color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g,
+                              Kirigami.Theme.textColor.b, 0.18)
     }
 
     enter: Transition {
